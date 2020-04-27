@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
             printf("Error! You must type hex-number.\n");
             return 0;
         }
-        if (argument_2 > LED_MAX || argv[2][4] != 0)
+        if (argument_2 > LED_MAX)
         {
             printf("Error! A number higher than 0x7F is not allowed.\n");
             return 0;
