@@ -76,7 +76,13 @@ int main(int argc, char *argv[])
             printf("Error! It's not a hex-number.\n");
             return 0;
         }
-        else if (argument_2 > 0x7f)
+	else if (!((argv[2][2] >= '0' && argv[2][2] <= '9') || (argv[2][2] >= 'A' && argv[2][2] <= 'F') || (argv[2][2] >= 'a' && argv[2][2] <= 'f'))
+|| !((argv[2][3] >= '0' && argv[2][3] <= '9') || (argv[2][3] >= 'A' && argv[2][3] <= 'F') || (argv[2][3] >= 'a' && argv[2][3] <= 'f') || argv[2][3] == 0))
+	{
+	    printf("Error! You must type hex-number.\n");
+	    return 0;
+	}
+        if (argument_2 > 0x7f || argv[2][4] != 0)
         {
             printf("Error! A number higher than 0x7F is not allowed.\n");
             return 0;
