@@ -76,9 +76,11 @@ int main(int argc, char **argv)
 {
     char buf1[100] = "Welcome to";
     char buf2[100] = "Embedded World";
+    char buf3[100] = "Hi, 201601639!";
     int i;
     int len1 = strlen(buf1);
     int len2 = strlen(buf2);
+    int len3 = strlen(buf3);
 
     if (argc == 2)
     {
@@ -86,12 +88,21 @@ int main(int argc, char **argv)
         len2 = 0;
         strcpy(buf1, argv[1]);
     }
-    else if (argc >= 3)
+    else if (argc == 3)
     {
         len1 = strlen(argv[1]);
         len2 = strlen(argv[2]);
         strcpy(buf1, argv[1]);
         strcpy(buf2, argv[2]);
+    }
+    else if (argc >= 4)
+    {
+        len1 = strlen(argv[1]);
+        len2 = strlen(argv[2]);
+        len3 = strlen(argv[3]);
+        strcpy(buf1, argv[1]);
+        strcpy(buf2, argv[2]);
+        strcpy(buf3, argv[3]);
     }
 
     wiringPiSetup();
@@ -102,4 +113,12 @@ int main(int argc, char **argv)
     putCmd4(0xC0);
     for (i = 0; i < len2; i++)
         putChar(buf2[i]);
+    delay(2000);
+    putCmd4(0x08); //Display Off
+    delay(2000);
+    putCmd4(0x0C); //Display On
+    delay(2000);
+    putCmd4(0x02); //Cursur Home
+    for (i = 0; i < len3; i++)
+        putChar(buf3[i]);
 }
