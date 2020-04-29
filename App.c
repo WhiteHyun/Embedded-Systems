@@ -39,6 +39,7 @@
 #define HEX_E 0x79
 #define HEX_F 0x71
 
+#define LED_MAX 0x7F
 void LED_Off(int *ledList);
 void LED_Light_Function(int *ledList, int hex_number);
 
@@ -80,7 +81,7 @@ int main(int argc, char *argv[])
             printf("Error! You must type less than 2 arguments.\n");
             return 0;
         }
-        else if (argument_2 > 0x7f)
+        else if (argument_2 > LED_MAX)
         {
             printf("Error! A number higher than 0x7F is not allowed.\n");
             return 0;
@@ -138,7 +139,7 @@ void LED_Light_Function(int *ledList, int hex_number) //Function to turn on each
 {
     int i, j;
     j = 0;
-    for (i = 0x01; i <= 0x7f; i <<= 1)
+    for (i = 0x01; i <= LED_MAX; i <<= 1)
     {
         if ((hex_number & i) == i)
             digitalWrite(ledList[j], HIGH);
