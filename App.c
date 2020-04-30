@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 {
     if (argc <= 1)
     {
-        printf("Error! You must type at least one argument!");
+        printf("Error! You must type at least one argument!\n");
         return 0;
     }
     srand((unsigned)time(NULL));    //for receiving random numbers.
