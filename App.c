@@ -45,6 +45,11 @@ void LED_On(int *ledList, int hex_number);
 
 int main(int argc, char *argv[])
 {
+    if (argc <= 1)
+    {
+        printf("Error! You must type at least one argument!");
+        return 0;
+    }
     srand((unsigned)time(NULL));    //for receiving random numbers.
     int argument_1 = atoi(argv[1]); //Received the first argument and convert to int-type
     int argument_2, randNum, i;     //argument_2 = second argument, randNum = random number storage variable
