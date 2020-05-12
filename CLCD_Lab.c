@@ -14,6 +14,7 @@
 #define BTN_7 13 //MISO
 #define BTN_8 14 //SLCK
 #define BTN_9 10 //CEO
+#define BTN_EQUAL
 
 void write4bits(unsigned char command)
 {
@@ -74,8 +75,8 @@ void initialize_textlcd()
     pinMode(BTN_8, INPUT);
     pinMode(BTN_9, INPUT);
 
-    pullUpDnControl(BTN_PLUS, PUD_UP);
-    pullUpDnControl(BTN_MINUS, PUD_UP);
+    pullUpDnControl(BTN_PLUS, PUD_DOWN);
+    pullUpDnControl(BTN_MINUS, PUD_DOWN);
     pullUpDnControl(BTN_7, PUD_DOWN);
     pullUpDnControl(BTN_8, PUD_DOWN);
     pullUpDnControl(BTN_9, PUD_DOWN);
@@ -89,7 +90,16 @@ void initialize_textlcd()
     putCmd4(0x01); // 표시 클리어
     delay(2);
 }
-
+void waitForEnter()
+{
+    //Wait for push
+    while (digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9) || digitalRead(BTN_MINUS) || digitalRead(BTN_PLUS))
+        delay(1);
+    //Wait for release
+    while (!(digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9) || digitalRead(BTN_MINUS) || digitalRead(BTN_PLUS)))
+        delay(1);
+    printf("successfuly Entered\n");
+}
 int main(int argc, char **argv)
 {
     // char buf1[100] = "Welcome to";
@@ -122,10 +132,31 @@ int main(int argc, char **argv)
     //     strcpy(buf2, argv[2]);
     //     strcpy(buf3, argv[3]);
     // }
-
     wiringPiSetup();
-
     initialize_textlcd();
+    while (true)
+    {
+        if (digitalRead(BTN_7) == 1)
+        {
+            putChar('7');
+        }
+        else if (digitalRead(BTN_8) == 1)
+        {
+            putChar('8');
+        }
+        else if (digitalRead(BTN_9) == 1)
+        {
+            putChar('8');
+        }
+        else if (digitalRead(BTN_MINUS) == 1)
+        {
+            putChar('-');
+        }
+        else if (digitalRead(BTN_PLUS) == 1)
+        {
+            putChar('+');
+        }
+    }
 
     // for (i = 0; i < len1; i++)
     //     putChar(buf1[i]);
@@ -140,3 +171,4 @@ int main(int argc, char **argv)
     // putCmd4(0x02); //Cursur Home
     // for (i = 0; i < len3; i++)
     //     putChar(buf3[i]);
+}
