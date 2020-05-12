@@ -127,7 +127,6 @@ int main(int argc, char **argv)
 
     initialize_textlcd();
 
-
     // for (i = 0; i < len1; i++)
     //     putChar(buf1[i]);
     // putCmd4(0xC0);
