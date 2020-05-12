@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <wiringPi.h>
 
 #define LCD_D4 2
@@ -11,10 +12,17 @@
 #define LCD_EN 0
 #define BTN_PLUS 5
 #define BTN_MINUS 6
-#define BTN_7 13 //MISO
-#define BTN_8 14 //SLCK
-#define BTN_9 10 //CEO
-#define BTN_EQUAL
+#define BTN_0 27     //#98
+#define BTN_1 22     //#100
+#define BTN_2 23     //#108
+#define BTN_3 26     //#99
+#define BTN_4 14     //SCLK
+#define BTN_5 21     //#101
+#define BTN_6 11     //#118
+#define BTN_7 12     //MOSI
+#define BTN_8 13     //MISO
+#define BTN_9 10     //CEO
+#define BTN_EQUAL 24 //#97
 
 void write4bits(unsigned char command)
 {
@@ -102,73 +110,39 @@ void waitForEnter()
 }
 int main(int argc, char **argv)
 {
-    // char buf1[100] = "Welcome to";
-    // char buf2[100] = "Embedded World";
-    // char buf3[100] = "Hi, 201601639!";
-    // int i;
-    // int len1 = strlen(buf1);
-    // int len2 = strlen(buf2);
-    // int len3 = strlen(buf3);
-
-    // if (argc == 2)
-    // {
-    //     len1 = strlen(argv[1]);
-    //     len2 = 0;
-    //     strcpy(buf1, argv[1]);
-    // }
-    // else if (argc == 3)
-    // {
-    //     len1 = strlen(argv[1]);
-    //     len2 = strlen(argv[2]);
-    //     strcpy(buf1, argv[1]);
-    //     strcpy(buf2, argv[2]);
-    // }
-    // else if (argc >= 4)
-    // {
-    //     len1 = strlen(argv[1]);
-    //     len2 = strlen(argv[2]);
-    //     len3 = strlen(argv[3]);
-    //     strcpy(buf1, argv[1]);
-    //     strcpy(buf2, argv[2]);
-    //     strcpy(buf3, argv[3]);
-    // }
     wiringPiSetup();
     initialize_textlcd();
-    while (true)
-    {
-        if (digitalRead(BTN_7) == 1)
-        {
-            putChar('7');
-        }
-        else if (digitalRead(BTN_8) == 1)
-        {
-            putChar('8');
-        }
-        else if (digitalRead(BTN_9) == 1)
-        {
-            putChar('8');
-        }
-        else if (digitalRead(BTN_MINUS) == 1)
-        {
-            putChar('-');
-        }
-        else if (digitalRead(BTN_PLUS) == 1)
-        {
-            putChar('+');
-        }
-    }
-
-    // for (i = 0; i < len1; i++)
-    //     putChar(buf1[i]);
-    // putCmd4(0xC0);
-    // for (i = 0; i < len2; i++)
-    //     putChar(buf2[i]);
-    // delay(2000);
-    // putCmd4(0x08); //Display Off
-    // delay(2000);
-    // putCmd4(0x0C); //Display On
-    // delay(2000);
-    // putCmd4(0x02); //Cursur Home
-    // for (i = 0; i < len3; i++)
-    //     putChar(buf3[i]);
+    printf("BTN_0 : %d\n", digitalRead(BTN_0));
+    printf("BTN_1 : %d\n", digitalRead(BTN_1));
+    printf("BTN_2 : %d\n", digitalRead(BTN_2));
+    printf("BTN_3 : %d\n", digitalRead(BTN_3));
+    printf("BTN_4 : %d\n", digitalRead(BTN_4));
+    printf("BTN_5 : %d\n", digitalRead(BTN_5));
+    printf("BTN_6 : %d\n", digitalRead(BTN_6));
+    printf("BTN_7 : %d\n", digitalRead(BTN_7));
+    printf("BTN_8 : %d\n", digitalRead(BTN_8));
+    printf("BTN_9 : %d\n", digitalRead(BTN_9));
+    printf("BTN_MINUS : %d\n", digitalRead(BTN_MINUS));
+    printf("BTN_PLUS : %d\n", digitalRead(BTN_PLUS));
+    printf("BTN_EQUAL : %d\n", digitalRead(BTN_EQUAL));
+    // if (digitalRead(BTN_7) == HIGH)
+    // {
+    //     putChar('7');
+    // }
+    // else if (digitalRead(BTN_8) == HIGH)
+    // {
+    //     putChar('8');
+    // }
+    // else if (digitalRead(BTN_9) == HIGH)
+    // {
+    //     putChar('9');
+    // }
+    // else if (digitalRead(BTN_MINUS) == HIGH)
+    // {
+    //     putChar('-');
+    // }
+    // else if (digitalRead(BTN_PLUS) == HIGH)
+    // {
+    //     putChar('+');
+    // }
 }
