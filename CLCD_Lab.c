@@ -79,15 +79,31 @@ void initialize_textlcd()
 
     pinMode(BTN_PLUS, INPUT);
     pinMode(BTN_MINUS, INPUT);
+    pinMode(BTN_0, INPUT);
+    pinMode(BTN_1, INPUT);
+    pinMode(BTN_2, INPUT);
+    pinMode(BTN_3, INPUT);
+    pinMode(BTN_4, INPUT);
+    pinMode(BTN_5, INPUT);
+    pinMode(BTN_6, INPUT);
     pinMode(BTN_7, INPUT);
     pinMode(BTN_8, INPUT);
     pinMode(BTN_9, INPUT);
+    pinMode(BTN_EQUAL, INPUT);
 
     pullUpDnControl(BTN_PLUS, PUD_DOWN);
     pullUpDnControl(BTN_MINUS, PUD_DOWN);
+    pullUpDnControl(BTN_0, PUD_DOWN);
+    pullUpDnControl(BTN_1, PUD_DOWN);
+    pullUpDnControl(BTN_2, PUD_DOWN);
+    pullUpDnControl(BTN_3, PUD_DOWN);
+    pullUpDnControl(BTN_4, PUD_DOWN);
+    pullUpDnControl(BTN_5, PUD_DOWN);
+    pullUpDnControl(BTN_6, PUD_DOWN);
     pullUpDnControl(BTN_7, PUD_DOWN);
     pullUpDnControl(BTN_8, PUD_DOWN);
     pullUpDnControl(BTN_9, PUD_DOWN);
+    pullUpDnControl(BTN_EQUAL, PUD_DOWN);
 
     putCmd4(0x28); // 4비트 2줄 Setting (DL = 0, N = 1)
     putCmd4(0x28);
