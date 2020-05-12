@@ -148,6 +148,7 @@ void waitForEnter(char **expression, char *inputChar, char *inputSet)
                 putChar(inputChar[i]);
                 (*expression)[index++] = inputChar[i];
                 putCmd4(CMD_CURSURMOVE | 4);
+                count++;
                 break;
             }
         }
@@ -205,5 +206,8 @@ void printResult(char *expression, int sum)
         expression[i] = NULL;
     itoa(sum, expression, 10);
     for (i = 0; expression[i] != NULL; i++)
+    {
         putChar(expression[i]);
+        putCmd4(CMD_CURSURMOVE | 4);
+    }
 }
