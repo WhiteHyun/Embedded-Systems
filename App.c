@@ -41,31 +41,49 @@
 
 #define LED_MAX 0x7F
 void LED_Off(int *ledList);
-void LED_Light_Function(int *ledList, int hex_number);
+void LED_On(int *ledList, int hex_number);
 
 int main(int argc, char *argv[])
 {
+    if (argc <= 1)
+    {
+        printf("Error! You must type at least one argument!\n");
+        return 0;
+    }
     srand((unsigned)time(NULL));    //for receiving random numbers.
     int argument_1 = atoi(argv[1]); //Received the first argument and convert to int-type
     int argument_2, randNum, i;     //argument_2 = second argument, randNum = random number storage variable
 
     /* Array representing 7 LEDs */
-    int ledList[7] = {LED_UP, LED_RIGHTUP, LED_RIGHTDOWN, LED_DOWN, LED_LEFTDOWN, LED_LEFTUP, LED_CENTER};
+    int ledList[7] = {LED_UP, LED_RIGHTUP, LED_RIGHTDOWN,
+                      LED_DOWN, LED_LEFTDOWN, LED_LEFTUP, LED_CENTER};
 
     /* Each index contains a value that can light up each hexadecimal number with a led */
-    int ledHexList[16] = {HEX_0, HEX_1, HEX_2, HEX_3, HEX_4, HEX_5, HEX_6, HEX_7, HEX_8, HEX_9, HEX_A, HEX_B, HEX_C, HEX_D, HEX_E, HEX_F};
+    int ledHexList[16] = {HEX_0, HEX_1, HEX_2, HEX_3,
+                          HEX_4, HEX_5, HEX_6, HEX_7,
+                          HEX_8, HEX_9, HEX_A, HEX_B,
+                          HEX_C, HEX_D, HEX_E, HEX_F};
 
-    /* Array that verifies that no duplicate values are received */
-    int randCheck[16] = {
+    /* Array that verifies that no overlap values are received */
+    int randOverlapCheck[16] = {
         0,
     };
     printf("App running...\n");
-    printf("argument_1 = %d\n", argument_1); //To check the argument_1 value
-
-    if (argument_1 < 1 || argument_1 > 2) //argument_1 Error
+    printf("Argument 1 = %d\n", argument_1); //To check the argument_1 value
+    /* Argument 1 Error */
+    if (argument_1 < 1 || argument_1 > 2)
     {
         printf("Error! Only 1 and 2 are available for options.\n");
         return 0;
+    }
+    /* Argument 2 Error */
+    else if (argument_1 == 1)
+    {
+        if (argc > 2)
+        {
+            printf("Error! You can type only ./App 1\n");
+            return 0;
+        }
     }
     else if (argument_1 == 2)
     {
@@ -104,28 +122,28 @@ int main(int argc, char *argv[])
     {
         for (i = 0; i < 16; i++) //output in sequence
         {
-            LED_Light_Function(ledList, ledHexList[i]);
+            LED_On(ledList, ledHexList[i]);
             delay(500);
             LED_Off(ledList);
         }
         for (i = 0; i < 16; i++) //output in rand
         {
             randNum = rand() % 16;
-            if (randCheck[randNum] == 1) //if duplicate values tried output.
+            if (randOverlapCheck[randNum] == 1) //if overlap values tried output.
             {
                 i--;
                 continue;
             }
-            randCheck[randNum] = 1;
-            LED_Light_Function(ledList, ledHexList[randNum]);
+            randOverlapCheck[randNum] = 1;
+            LED_On(ledList, ledHexList[randNum]);
             delay(500);
             LED_Off(ledList); //turn off LED.
         }
     }
     else
     {
-        printf("argument_2 = 0x%x\n", argument_2); //To check the argument_2 value
-        LED_Light_Function(ledList, argument_2);
+        printf("Argument 2 = 0x%x\n", argument_2); //To check the argument_2 value
+        LED_On(ledList, argument_2);
     }
 
     for (i = 3; i > 0; i--)
@@ -144,7 +162,7 @@ void LED_Off(int *ledList) //Function to turn off all LED
         digitalWrite(ledList[i], LOW);
 }
 
-void LED_Light_Function(int *ledList, int hex_number) //Function to turn on each LED
+void LED_On(int *ledList, int hex_number) //Function to turn on each LED
 {
     int i, j;
     j = 0;
