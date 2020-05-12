@@ -24,6 +24,54 @@
 #define BTN_9 10     //CEO
 #define BTN_EQUAL 24 //#97
 
+#define CMD_CURSURMOVE 0x10 //0001 0000 (S/C = 0, R/L = 0)
+
+void write4bits(unsigned char command);                                //4비트 읽어씀
+void sendDataCmd4(unsigned char data);                                 //8비트 데이터를 4비트씩 끊어서 보냄
+void putCmd4(unsigned char cmd);                                       //명령어 입력
+void putChar(char c);                                                  //문자 CLCD에 넣기위한 함수
+void initialize_textlcd(int *inputSet, int *outputSet);                //초기 init 함수
+void waitForEnter(char **expression, char *inputChar, char *inputSet); //입력 받을 때 사용할 함수
+void calculate(bool plusOrMinus, char **start, char **end);            //주어진 식에 대해 계산하는 함수
+void printResult(char *expression, int sum);                           //계산출력용 함수
+
+int main()
+{
+    char expression[32] = {
+        NULL,
+    };
+
+    int sum = 0;
+
+    int inputSet[13] = {BTN_PLUS, BTN_MINUS, BTN_EQUAL, BTN_0, BTN_1, BTN_2, BTN_3, BTN_4, BTN_5, BTN_6, BTN_7, BTN_8, BTN_9};
+    char inputChar[13] = {'+', '-', '=', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    int outputSet[6] = {LCD_D4, LCD_D5, LCD_D6, LCD_D7, LCD_RS, LCD_EN};
+    wiringPiSetup();
+    // printf("BTN_0 : %d\n", digitalRead(BTN_0));
+    // printf("BTN_1 : %d\n", digitalRead(BTN_1));
+    // printf("BTN_2 : %d\n", digitalRead(BTN_2));
+    // printf("BTN_3 : %d\n", digitalRead(BTN_3));
+    // printf("BTN_4 : %d\n", digitalRead(BTN_4));
+    // printf("BTN_5 : %d\n", digitalRead(BTN_5));
+    // printf("BTN_6 : %d\n", digitalRead(BTN_6));
+    // printf("BTN_7 : %d\n", digitalRead(BTN_7));
+    // printf("BTN_8 : %d\n", digitalRead(BTN_8));
+    // printf("BTN_9 : %d\n", digitalRead(BTN_9));
+    // printf("BTN_MINUS : %d\n", digitalRead(BTN_MINUS));
+    // printf("BTN_PLUS : %d\n", digitalRead(BTN_PLUS));
+    // printf("BTN_EQUAL : %d\n", digitalRead(BTN_EQUAL));
+
+    initialize_textlcd();
+    /*Calculate*/
+    while (true)
+    {
+        for (int i = 0; i < 32; i++)
+            expression[i] = NULL;
+        waitForEnter(&expression, inputChar, inputSet);
+        printResult(expression, sum);
+    }
+    return 0;
+}
 void write4bits(unsigned char command)
 {
     digitalWrite(LCD_D4, (command & 1));
@@ -60,51 +108,20 @@ void putChar(char c)
     sendDataCmd4(c);
 }
 
-void initialize_textlcd()
+void initialize_textlcd(int *inputSet, int *outputSet)
 {
     //CLCD 초기화
-    pinMode(LCD_RS, OUTPUT);
-    pinMode(LCD_EN, OUTPUT);
-    pinMode(LCD_D4, OUTPUT);
-    pinMode(LCD_D5, OUTPUT);
-    pinMode(LCD_D6, OUTPUT);
-    pinMode(LCD_D7, OUTPUT);
-    digitalWrite(LCD_RS, 0);
-    digitalWrite(LCD_EN, 0);
-    digitalWrite(LCD_D4, 0);
-    digitalWrite(LCD_D5, 0);
-    digitalWrite(LCD_D6, 0);
-    digitalWrite(LCD_D7, 0);
+    for (int i = 0; i < 6; i++)
+    {
+        pinMode(outputSet[i], OUTPUT);
+        digitalWrite(outputSet[i], 0);
+    }
     delay(35);
-
-    pinMode(BTN_PLUS, INPUT);
-    pinMode(BTN_MINUS, INPUT);
-    pinMode(BTN_0, INPUT);
-    pinMode(BTN_1, INPUT);
-    pinMode(BTN_2, INPUT);
-    pinMode(BTN_3, INPUT);
-    pinMode(BTN_4, INPUT);
-    pinMode(BTN_5, INPUT);
-    pinMode(BTN_6, INPUT);
-    pinMode(BTN_7, INPUT);
-    pinMode(BTN_8, INPUT);
-    pinMode(BTN_9, INPUT);
-    pinMode(BTN_EQUAL, INPUT);
-
-    pullUpDnControl(BTN_PLUS, PUD_DOWN);
-    pullUpDnControl(BTN_MINUS, PUD_DOWN);
-    pullUpDnControl(BTN_0, PUD_DOWN);
-    pullUpDnControl(BTN_1, PUD_DOWN);
-    pullUpDnControl(BTN_2, PUD_DOWN);
-    pullUpDnControl(BTN_3, PUD_DOWN);
-    pullUpDnControl(BTN_4, PUD_DOWN);
-    pullUpDnControl(BTN_5, PUD_DOWN);
-    pullUpDnControl(BTN_6, PUD_DOWN);
-    pullUpDnControl(BTN_7, PUD_DOWN);
-    pullUpDnControl(BTN_8, PUD_DOWN);
-    pullUpDnControl(BTN_9, PUD_DOWN);
-    pullUpDnControl(BTN_EQUAL, PUD_DOWN);
-
+    for (int i = 0; i < 13; i++)
+    {
+        pinMode(outputSet[i], INPUT);
+        pullUpDnControl(outputSet[i], PUD_DOWN);
+    }
     putCmd4(0x28); // 4비트 2줄 Setting (DL = 0, N = 1)
     putCmd4(0x28);
     putCmd4(0x28);
@@ -114,51 +131,79 @@ void initialize_textlcd()
     putCmd4(0x01); // 표시 클리어
     delay(2);
 }
-void waitForEnter()
+
+void waitForEnter(char **expression, char *inputChar, char *inputSet)
 {
+    int count = 0;
+    int index = 0;
+    putCmd4(0x01); // 표시 클리어
+
     //Wait for push
-    while (digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9) || digitalRead(BTN_MINUS) || digitalRead(BTN_PLUS))
-        delay(1);
-    //Wait for release
-    while (!(digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9) || digitalRead(BTN_MINUS) || digitalRead(BTN_PLUS)))
-        delay(1);
+    while (!digitalRead(BTN_EQUAL))
+    {
+        for (int i = 0; i < 13; i++)
+        {
+            if (digitalRead(inputSet[i]) == HIGH)
+            {
+                putChar(inputChar[i]);
+                (*expression)[index++] = inputChar[i];
+                putCmd4(CMD_CURSURMOVE | 4);
+                break;
+            }
+        }
+        if (count == 16)
+            putCmd4(0xC0); //2행1열로 커서 이동
+    }
+    (*expression)[index] = inputChar[2];
+    putChar(inputChar[2]);
     printf("successfuly Entered\n");
+    printf("expression %s\n", (*expression));
 }
-int main(int argc, char **argv)
+
+void calculate(bool plusOrMinus, char **start, char **end)
 {
-    wiringPiSetup();
-    initialize_textlcd();
-    printf("BTN_0 : %d\n", digitalRead(BTN_0));
-    printf("BTN_1 : %d\n", digitalRead(BTN_1));
-    printf("BTN_2 : %d\n", digitalRead(BTN_2));
-    printf("BTN_3 : %d\n", digitalRead(BTN_3));
-    printf("BTN_4 : %d\n", digitalRead(BTN_4));
-    printf("BTN_5 : %d\n", digitalRead(BTN_5));
-    printf("BTN_6 : %d\n", digitalRead(BTN_6));
-    printf("BTN_7 : %d\n", digitalRead(BTN_7));
-    printf("BTN_8 : %d\n", digitalRead(BTN_8));
-    printf("BTN_9 : %d\n", digitalRead(BTN_9));
-    printf("BTN_MINUS : %d\n", digitalRead(BTN_MINUS));
-    printf("BTN_PLUS : %d\n", digitalRead(BTN_PLUS));
-    printf("BTN_EQUAL : %d\n", digitalRead(BTN_EQUAL));
-    // if (digitalRead(BTN_7) == HIGH)
-    // {
-    //     putChar('7');
-    // }
-    // else if (digitalRead(BTN_8) == HIGH)
-    // {
-    //     putChar('8');
-    // }
-    // else if (digitalRead(BTN_9) == HIGH)
-    // {
-    //     putChar('9');
-    // }
-    // else if (digitalRead(BTN_MINUS) == HIGH)
-    // {
-    //     putChar('-');
-    // }
-    // else if (digitalRead(BTN_PLUS) == HIGH)
-    // {
-    //     putChar('+');
-    // }
+    if (plusOrMinus)
+    {
+        sum += strtol(start, &(*end));
+    }
+    else
+    {
+        sum -= strtol(start, &(*end));
+    }
+}
+
+void printResult(char *expression, int sum)
+{
+    int i;
+    char *start = expression;
+    bool plusOrMinus = true;
+    char *end; //이전 숫자의 끝 부분을 저장하기 위한 포인터
+    for (i = 0; expression[i] != NULL; i++)
+    {
+        if (strcmp(expression[i], '+') == 0)
+        {
+            calculate(plusOrMinus, &start, &end);
+            plusOrMinus = true;
+            start = expression + i + 1;
+            continue;
+        }
+        else if (strcmp(expression[i], '-') == 0)
+        {
+            calculate(plusOrMinus, &start, &end);
+            plusOrMinus = false;
+            start = expression + i + 1;
+            continue;
+        }
+        else if (strcmp(expression[i], '=') == 0)
+        {
+            calculate(plusOrMinus, &start, &end);
+            break;
+        }
+    }
+
+    for (i = 0; expression[i] != NULL; i++)
+        expression[i] = NULL;
+    itoa(sum, expression, 10);
+    for (i = 0; expression[i] != NULL; i++)
+        putChar(expression[i]);
 }
