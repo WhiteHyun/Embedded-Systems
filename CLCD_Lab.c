@@ -24,7 +24,8 @@
 #define BTN_9 10     //CEO
 #define BTN_EQUAL 24 //#97
 
-#define CMD_CURSURMOVE 0x10 //0001 0000 (S/C = 0, R/L = 0)
+#define OVERFLOW 0
+#define INVALID_OPERATION 1
 
 void write4bits(unsigned char command);                              //4비트 읽어씀
 void sendDataCmd4(unsigned char data);                               //8비트 데이터를 4비트씩 끊어서 보냄
@@ -34,6 +35,9 @@ void initialize_textlcd(int *inputSet, int *outputSet);              //초기 in
 void waitForEnter(char *expression, char *inputChar, int *inputSet); //입력 받을 때 사용할 함수
 int calculate(bool plusOrMinus, char **start, char **end, int sum);  //주어진 식에 대해 계산하는 함수
 void printResult(char *expression);                                  //계산출력용 함수
+void errorPrint(int errno);                                          //에러 처리함수
+
+int count = 0; //화면에 출력될 32개가 넘어갈 경우 오버플로우를 출력하기 위한 변수
 
 int main()
 {
@@ -61,24 +65,29 @@ int main()
     // printf("BTN_EQUAL : %d\n", digitalRead(BTN_EQUAL));
 
     initialize_textlcd(inputSet, outputSet);
-    /*Calculate*/
+
+    /* Calculate */
     while (true)
     {
+        count = 0;
         for (i = 0; i < 32; i++)
             expression[i] = 0;
         while (!(digitalRead(inputSet[3]) || digitalRead(inputSet[4]) || digitalRead(inputSet[5]) ||
                  digitalRead(inputSet[6]) || digitalRead(inputSet[7]) || digitalRead(inputSet[8]) ||
                  digitalRead(inputSet[9]) || digitalRead(inputSet[10]) || digitalRead(inputSet[11]) || digitalRead(inputSet[12])))
         {
+            delay(35);
         }
         while (digitalRead(inputSet[3]) || digitalRead(inputSet[4]) || digitalRead(inputSet[5]) ||
                digitalRead(inputSet[6]) || digitalRead(inputSet[7]) || digitalRead(inputSet[8]) ||
                digitalRead(inputSet[9]) || digitalRead(inputSet[10]) || digitalRead(inputSet[11]) || digitalRead(inputSet[12]))
         {
+            delay(35);
         }
         printf("start waitForEnter Function\n");
         waitForEnter(expression, inputChar, inputSet);
         printf("end waitForEnter Function\n");
+
         printf("start printResult Function\n");
         printResult(expression);
         printf("end printResult Function\n");
@@ -149,9 +158,10 @@ void initialize_textlcd(int *inputSet, int *outputSet)
 
 void waitForEnter(char *expression, char *inputChar, int *inputSet)
 {
+    bool overlap = false;
     int flag = 0x0000;
     int i;
-    int count = 0;
+
     int index = 0;
     putCmd4(0x01); // 표시 클리어
 
@@ -160,18 +170,45 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
     {
         for (i = 0; i < 13; i++)
         {
-            if (digitalRead(inputSet[i]) == 1)
+            if (digitalRead(BTN_EQUAL) == 1) //등호 기호가
+                break;
+            else if (digitalRead(inputSet[i]) == 1)
             {
+                if (digitalRead(BTN_PLUS) == 1 || digitalRead(BTN_MINUS) == 1)
+                {
+                    if (overlap)
+                        goto fail;
+                    while (digitalRead(BTN_PLUS) == 1 || digitalRead(BTN_MINUS) == 1)
+                        delay(35);
+                    printf("%d = %c\n", i, inputChar[i]);
+                    putChar(inputChar[i]);
+                    expression[index++] = inputChar[i];
+                    count++;
+                    delay(35);
+                    overlap = true;
+                    continue;
+                }
+                //누른 버튼을 뗄 때까지 반복문을 돎
+                while (digitalRead(inputSet[i]))
+                    delay(35);
                 printf("%d = %c\n", i, inputChar[i]);
                 putChar(inputChar[i]);
                 expression[index++] = inputChar[i];
-                //putCmd4(CMD_CURSURMOVE | 4);
                 count++;
-                delay(500);
+                delay(35);
+                overlap = false;
+                break;
             }
         }
         if (count == 16)
-            putCmd4(0xC0); //2행1열로 커서 이동
+            putCmd4(0xC0);    //2행1열로 커서 이동
+        else if (count >= 32) //overflow error
+        {
+            printf("count = %d\n", count);
+            count = 0;
+            errorPrint(OVERFLOW);
+            return;
+        }
     }
     while (digitalRead(BTN_EQUAL))
     {
@@ -179,8 +216,25 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
     }
     expression[index] = inputChar[2];
     putChar(inputChar[2]);
+    count++;
+    if (count == 16)
+        putCmd4(0xC0);    //2행1열로 커서 이동
+    else if (count >= 32) //overflow error
+    {
+        printf("count = %d\n", count);
+        count = 0;
+        errorPrint(OVERFLOW);
+        return;
+    }
     printf("successfuly Entered\n");
     printf("expression %s\n", expression);
+    return;
+fail:
+    for (i = 0; expression[i] != 0; i++)
+        expression[i] = 0;
+    count = 0;
+    errorPrint(INVALID_OPERATION);
+    return;
 }
 
 int calculate(bool plusOrMinus, char **start, char **end, int sum)
@@ -198,15 +252,19 @@ int calculate(bool plusOrMinus, char **start, char **end, int sum)
 
 void printResult(char *expression)
 {
+    if (expression[0] == 0)
+        return;
     int i;
     int sum = 0;
     char *start = expression;
     bool plusOrMinus = true;
     char *end = NULL; //이전 숫자의 끝 부분을 저장하기 위한 포인터
+
     printf("before expression\n");
     for (i = 0; expression[i] != 0; i++)
         printf("%c", expression[i]);
     printf("\n");
+
     for (i = 0; expression[i] != 0; i++)
     {
         if (expression[i] == '+')
@@ -218,6 +276,8 @@ void printResult(char *expression)
         }
         else if (expression[i] == '-')
         {
+            if (i == 0)
+                continue;
             sum = calculate(plusOrMinus, &start, &end, sum);
             plusOrMinus = false;
             start = expression + i + 1;
@@ -239,5 +299,45 @@ void printResult(char *expression)
     {
         printf("expression[%d] = %c\n", i, expression[i]);
         putChar(expression[i]);
+        count++;
+        if (count == 16)
+            putCmd4(0xC0);    //2행1열로 커서 이동
+        else if (count >= 32) //overflow error
+        {
+            printf("count = %d\n", count);
+            errorPrint(OVERFLOW);
+            return;
+        }
     }
+}
+
+void errorPrint(int errno)
+{
+    int i;
+    char *err[3] = {"    Overflow",
+                    "    Invalid",
+                    "   operation"};
+
+    putCmd4(0x02); // 커서 홈
+    delay(2);
+    putCmd4(0x01); // 표시 클리어
+    delay(2);
+    if (errno == OVERFLOW)
+    {
+        printf("OVERFLOW ERROR TRAPED, errno = %d\n", errno);
+        for (i = 0; err[0][i] != 0; i++)
+            putChar(err[0][i]);
+    }
+    else if (errno = INVALID_OPERATION)
+    {
+        printf("INVALID_OPERATION ERROR TRAPED, errno = %d\n", errno);
+        for (i = 0; err[1][i] != 0; i++)
+            putChar(err[1][i]);
+        putCmd4(0xC0);
+        for (i = 0; err[2][i] != 0; i++)
+            putChar(err[2][i]);
+    }
+    delay(2000);
+    putCmd4(0x01); // 표시 클리어
+    putCmd4(0x02); // 커서 홈
 }
