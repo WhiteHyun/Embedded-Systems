@@ -57,14 +57,13 @@ int main(int argc, char **argv)
         else
             debug = true;
     }
-    int i;
-    char expression[32] = {
-        0,
-    };
-
     int inputSet[13] = {BTN_PLUS, BTN_MINUS, BTN_EQUAL, BTN_0, BTN_1, BTN_2, BTN_3, BTN_4, BTN_5, BTN_6, BTN_7, BTN_8, BTN_9};
     char inputChar[13] = {'+', '-', '=', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
     int outputSet[6] = {LCD_D4, LCD_D5, LCD_D6, LCD_D7, LCD_RS, LCD_EN};
+    char expression[32] = {
+        0,
+    };
+    int i;
     wiringPiSetup();
     initialize_textlcd(inputSet, outputSet);
 
@@ -74,19 +73,20 @@ int main(int argc, char **argv)
         buffer = 0;              //CLCD 출력버퍼를 비움
         for (i = 0; i < 32; i++) //수식값을 NULL로 초기화
             expression[i] = 0;
-        while (!((!digitalRead(inputSet[0])) || (!digitalRead(inputSet[1])) || digitalRead(inputSet[2]) ||
-                 digitalRead(inputSet[3]) || digitalRead(inputSet[4]) || digitalRead(inputSet[5]) ||
-                 digitalRead(inputSet[6]) || digitalRead(inputSet[7]) || digitalRead(inputSet[8]) ||
-                 digitalRead(inputSet[9]) || digitalRead(inputSet[10]) || digitalRead(inputSet[11]) || digitalRead(inputSet[12])))
+        //아무 입력이 들어온 경우 가감산기 작동 시작
+        while (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) ||
+                 digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
+                 digitalRead(BTN_3) || digitalRead(BTN_4) || digitalRead(BTN_5) ||
+                 digitalRead(BTN_6) || digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
         {
             delay(35);
         }
-        while ((!digitalRead(inputSet[0])) || (!digitalRead(inputSet[1])) || digitalRead(inputSet[2]) ||
-               digitalRead(inputSet[3]) || digitalRead(inputSet[4]) || digitalRead(inputSet[5]) ||
-               digitalRead(inputSet[6]) || digitalRead(inputSet[7]) || digitalRead(inputSet[8]) ||
-               digitalRead(inputSet[9]) || digitalRead(inputSet[10]) || digitalRead(inputSet[11]) || digitalRead(inputSet[12]))
+        while ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) ||
+               digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
+               digitalRead(BTN_3) || digitalRead(BTN_4) || digitalRead(BTN_5) ||
+               digitalRead(BTN_6) || digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
         {
-            delay(35); //아무 입력이 들어온 경우 가감산기 작동 시작
+            delay(35);
         }
         //수식을 입력받는 함수
         waitForEnter(expression, inputChar, inputSet);
@@ -165,28 +165,49 @@ void initialize_textlcd(int *inputSet, int *outputSet)
 int Input(int *inputSet)
 {
     int flag = 0x0000;
-    int i;
-    for (i = 0; i < 13; i++)
+    int i, state = 0;
+    while (true)
     {
-        if (i < 2 && !digitalRead(inputSet[i]))
+        if (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_0) ||
+              digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
+              digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
+              digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
         {
-            while (!digitalRead(inputSet[i]))
+            if (state == 0)
             {
-                delay(35);
+                for (i = 0; i < 13; i++)
+                {
+                    if (i < 2 && !digitalRead(inputSet[i]))
+                    {
+                        flag |= 1 << i;
+                        break;
+                    }
+                    else if (i >= 2 && digitalRead(inputSet[i]))
+                    {
+                        flag |= 1 << i;
+                        break;
+                    }
+                }
+                state = 1;
             }
-            flag |= 1 << i;
-            break;
         }
-        else if (i >= 2 && digitalRead(inputSet[i]))
+        else if ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_0) ||
+                 digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
+                 digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
+                 digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
         {
-            while (digitalRead(inputSet[i]))
+            if (state == 1)
             {
                 delay(35);
+                state = 0;
             }
-            flag |= 1 << i;
+        }
+        else if (digitalRead(BTN_EQUAL))
+        {
             break;
         }
     }
+
     return flag;
 }
 
@@ -203,9 +224,11 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
     while (true)
     {
         //입력을 받을 때까지 반복
-        while ((flag = Input(inputSet)) == 0)
-        {
-        }
+        // while ((flag = Input(inputSet)) == 0)
+        // {
+        //     delay(35);
+        // }
+        flag = Input(inputSet);
         for (i = 0; i < 13; i++)
         {
             //연산자일 경우
