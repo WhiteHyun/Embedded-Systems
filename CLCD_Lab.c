@@ -73,16 +73,14 @@ int main(int argc, char **argv)
         buffer = 0;              //CLCD 출력버퍼를 비움
         for (i = 0; i < 32; i++) //수식값을 NULL로 초기화
             expression[i] = 0;
-        //아무 입력이 들어온 경우 가감산기 작동 시작
-        while (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) ||
-                 digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
+        //새로운 숫자가 들어온 경우 가감산기 작동 시작
+        while (!((digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
                  digitalRead(BTN_3) || digitalRead(BTN_4) || digitalRead(BTN_5) ||
                  digitalRead(BTN_6) || digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
         {
             delay(35);
         }
-        while ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) ||
-               digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
+        while ((digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
                digitalRead(BTN_3) || digitalRead(BTN_4) || digitalRead(BTN_5) ||
                digitalRead(BTN_6) || digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
         {
