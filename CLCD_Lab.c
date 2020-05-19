@@ -39,7 +39,7 @@ void printResult(char *expression);                                  //계산출
 void errorPrint(int errno);                                          //에러 처리함수
 
 int buffer = 0;     //화면 공간을 사용할 때마다 값이 1씩 증가할 변수, 32개가 넘어갈 경우 오버플로우를 출력할 때 사용함
-bool debug = false; //디버그용(메인에서 들어오는 입력값에 따라 디버깅모드일지 유저모드일지 판별함)
+bool debug = false; //디버그 모드(메인에서 들어오는 입력값에 따라 디버깅모드일지 유저모드일지 판별함)
 int main(int argc, char **argv)
 {
     if (argc > 2)
@@ -220,11 +220,7 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
     //Wait for push
     while (true)
     {
-        //입력을 받을 때까지 반복
-        // while ((flag = Input(inputSet)) == 0)
-        // {
-        //     delay(35);
-        // }
+        //Input함수를 통해 값을 입력받음
         flag = Input(inputSet);
         for (i = 0; i < 13; i++)
         {
@@ -248,7 +244,7 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
                     printf("'=' input\n");
                 break;
             }
-            //피연산자 구분
+            //피연산자일 경우
             else if (i > 2 && ((flag & (0x0001 << i)) != 0))
             {
                 overlap = false;
@@ -264,11 +260,10 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
         delay(35);
 
         /*출력 제어 공간*/
-        //1줄을 꽉 채운 경우
-        if (buffer == 16)
+        if (buffer == 16)  //1줄을 꽉 채운 경우
             putCmd4(0xC0); //2행1열로 커서 이동
         //overflow error
-        else if (buffer > 32)
+        else if (buffer > 32) //2줄에서부터 화면을 넘어가는 경우
         {
             printf("buffer = %d\n", buffer);
             buffer = 0;
