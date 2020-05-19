@@ -168,11 +168,12 @@ int Input(int *inputSet)
     int i, state = 0;
     while (true)
     {
-        if (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_0) ||
-              digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
-              digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
-              digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
+        if ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) || digitalRead(BTN_0) ||
+            digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
+            digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
+            digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
         {
+            delay(10);
             if (state == 0)
             {
                 for (i = 0; i < 13; i++)
@@ -191,20 +192,16 @@ int Input(int *inputSet)
                 state = 1;
             }
         }
-        else if ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_0) ||
-                 digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
-                 digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
-                 digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
+        else if (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) || digitalRead(BTN_0) ||
+                   digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
+                   digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
+                   digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
         {
             if (state == 1)
             {
-                delay(35);
-                state = 0;
+                delay(10);
+                break;
             }
-        }
-        else if (digitalRead(BTN_EQUAL))
-        {
-            break;
         }
     }
 
