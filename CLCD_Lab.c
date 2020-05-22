@@ -322,6 +322,8 @@ void printResult(char *expression)
     {
         if (expression[i] == '+')
         {
+            if (i == 0)
+                continue;
             sum = calculate(plusOrMinus, start, sum);
             plusOrMinus = true;
             start = expression + i + 1; //'+' 이후의 위치를 가리킴
