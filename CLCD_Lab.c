@@ -73,7 +73,12 @@ int main(int argc, char **argv)
         buffer = 0;              //CLCD 출력버퍼를 비움
         for (i = 0; i < 32; i++) //수식값을 NULL로 초기화
             expression[i] = 0;
-        //새로운 숫자가 들어온 경우 가감산기 작동 시작
+        //수식을 입력받는 함수
+        waitForEnter(expression, inputChar, inputSet);
+        //수식을 계산하여 출력해주는 함수
+        printResult(expression);
+
+        //입력받으면 다시 처음부터 반복
         while (!(digitalRead(BTN_0) || digitalRead(BTN_1) || digitalRead(BTN_2) ||
                  digitalRead(BTN_3) || digitalRead(BTN_4) || digitalRead(BTN_5) ||
                  digitalRead(BTN_6) || digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
@@ -86,10 +91,6 @@ int main(int argc, char **argv)
         {
             delay(35);
         }
-        //수식을 입력받는 함수
-        waitForEnter(expression, inputChar, inputSet);
-        //수식을 계산하여 출력해주는 함수
-        printResult(expression);
     }
     return 0;
 }
@@ -163,16 +164,17 @@ void initialize_textlcd(int *inputSet, int *outputSet)
 int Input(int *inputSet)
 {
     int flag = 0x0000;
-    int i, state = 0;
+    int i, state = 0; //state: 입력 유무 상태를 저장할 변수
     while (true)
     {
+        //버튼을 눌렀을 때
         if ((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) || digitalRead(BTN_0) ||
             digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
             digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
             digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9))
         {
             delay(10);
-            if (state == 0)
+            if (state == 0) //입력 받은 상태가 아닌 경우
             {
                 for (i = 0; i < 13; i++)
                 {
@@ -187,15 +189,16 @@ int Input(int *inputSet)
                         break;
                     }
                 }
-                state = 1;
+                state = 1; //입력 받은 상태 저장
             }
         }
+        //버튼을 때었을 때
         else if (!((!digitalRead(BTN_PLUS)) || (!digitalRead(BTN_MINUS)) || digitalRead(BTN_EQUAL) || digitalRead(BTN_0) ||
                    digitalRead(BTN_1) || digitalRead(BTN_2) || digitalRead(BTN_3) ||
                    digitalRead(BTN_4) || digitalRead(BTN_5) || digitalRead(BTN_6) ||
                    digitalRead(BTN_7) || digitalRead(BTN_8) || digitalRead(BTN_9)))
         {
-            if (state == 1)
+            if (state == 1) //입력을 받아놓은 상태인 경우
             {
                 delay(10);
                 break;
@@ -213,7 +216,7 @@ void waitForEnter(char *expression, char *inputChar, int *inputSet)
     bool overlap = false;
     int i;
     int index = 0;
-    putCmd4(0x01); // 표시 클리어6
+    putCmd4(0x01); // 표시 클리어
 
     //Wait for push
     while (true)
@@ -303,12 +306,12 @@ void printResult(char *expression)
         return;
     int i;
     int sum = 0;
-    char *start = expression;
+    char *start = expression; //초기 첫 번째 주소로저장
     bool plusOrMinus = true;
     if (debug)
     {
         printf("before expression\n");
-        if (strlen(expression) >= 32)
+        if (strlen(expression) >= 32) //overflow error
             printf("OverFlow Error\n");
         else
             for (i = 0; expression[i] != 0; i++)
