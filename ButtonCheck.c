@@ -26,15 +26,16 @@ void Init_Button(int *buttonSet, int length)
     for (i = 0; i < length; i++)
     {
         pinMode(buttonSet[i], INPUT);
-        pullUpDnControl(buttonSet[i], PUD_DOWN);
+        pullUpDnControl(buttonSet[i], PUD_UP);
     }
+    printf("initialize_done\n");
 }
 
 int Button_Input(int *buttons, int length)
 {
     int inputBtnFlag = 0x0000;
     int i, state = 0; //state: 입력 유무 상태를 저장할 변수
-    while (true)
+    while (1)
     {
         //버튼을 눌렀을 때
         if (digitalRead(BTN_DOT_Q_Z) || digitalRead(BTN_A_B_C) || digitalRead(BTN_D_E_F) ||
@@ -76,14 +77,18 @@ int main()
 {
     int buttons[BTN_SIZE] = {BTN_DOT_Q_Z, BTN_A_B_C, BTN_D_E_F, BTN_G_H_I, BTN_J_K_L, BTN_M_N_O, BTN_P_R_S, BTN_T_U_V, BTN_W_X_Y, MOVE_LEFT, DELETE, MOVE_RIGHT};
     int dataReady;
-    /* Setting */
+    int i;
     wiringPiSetup();
     Init_Button(buttons, BTN_SIZE);
-    while (1)
+    // while (1)
+    // {
+    //     printf("Button_Input ready\n");
+    //     dataReady = Button_Input(buttons, BTN_SIZE);
+    //     printf("%d Input\n", dataReady);
+    // }
+    for (i = 0; i < BTN_SIZE; ++i)
     {
-        dataReady = Button_Input(buttons, BTN_SIZE, &currentTime, cursor);
-        printf("%d Input", dataReady);
+        printf("BTN_%d Input : %d\n", i, digitalRead(buttons[i]));
     }
-
     return 0;
 }
