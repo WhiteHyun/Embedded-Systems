@@ -37,9 +37,17 @@ enum size
 {
     MAX_BUF_SIZE = 80,
     BTN_SIZE = 12,
-    CHAR_PIXEL_SIZE = 24
+    CHAR_PIXEL_SIZE = 24,
+    NUM_CHAR = 27
 };
 
+/* 중첩상태 열거형 지정 */
+enum buffer_state
+{
+    _null = -1,
+    _spacing = 0,
+    _default = 1
+};
 /* TFT-LCD에 대한 주소나 정보들을 저장해놓은 구조체 */
 struct TFT_LCD_Info
 {
@@ -52,16 +60,34 @@ struct Cursor
 {
     time_t originalTime;         //커서 플리킹 사이클 체크변수
     unsigned short isFlickering; //커서 플리킹 체크변수
-    unsigned short offset_x;     //커서 x의 위치를 나타내는 변수
-    unsigned short offset_y;     //커서 y의 위치를 나타내는 변수
+    unsigned short offset_x;     //실제 커서 x의 위치를 나타내는 변수
+    unsigned short offset_y;     //실제 커서 y의 위치를 나타내는 변수
+    int pointer;                 //버퍼 배열에서 커서위치를 가리키는 변수
 };
-/* 버튼구성 및 버튼중첩을 담은 구조체 */
+/* 버튼구성 구조체 */
 struct Button
 {
-    int buttons[BTN_SIZE];  //버튼 wiringPi 넘버로 구성
-    int overlap[BTN_SIZE];  //중첩되어 눌려져있는지를 체크하는 변수
-    bool focused[BTN_SIZE]; //포커스 유무 판단 변수
+    int buttons[BTN_SIZE]; //버튼 wiringPi 넘버로 구성
 };
+/* 버퍼(24x24픽셀 공간에서의 값)의 정보를 담을 구조체 */
+struct Buffer
+{
+    int buttonNum;   //어느 버튼으로 정보가 저장되어있는지를 확인해주는 메인 변수
+    int overlap;     //중첩되어 눌려져있는지를 체크하는 변수
+    bool focused;    //포커스 유무 판단 변수
+    bool valueExist; //버퍼의 값이 존재하는지의 유무
+};
+/* LCD에 보여줄 정보를 가지고 있는 구조체 */
+struct Screen
+{
+    int alphabet[NUM_CHAR][CHAR_PIXEL_SIZE]; //알파벳 구성 값('a~z', '.')
+    struct Buffer buffer[MAX_BUF_SIZE];      //80자의 문자를 구성할 버퍼의 정보
+};
+
+/*
+ * 커서를 깜빡이게 만들어주는 메소드
+ * 1초마다 한 번씩 깜빡이게 만들어 둚
+ */
 void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info)
 {
     int draw_offset; //임시 LCD포인터
@@ -98,26 +124,28 @@ void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info)
  * 초반 커서의 시작 지점은 0으로 설정함
  * 버튼은 눌러져 있지 않을 때를 1로 설정함
  */
-void Init_ButtonAndCursor(struct Button *buttonInfo, struct Cursor *cursor)
+void Init_Button_Cursor(struct Button *buttonInfo, struct Cursor *cursor)
 {
     int i;
     int buttonSet[BTN_SIZE] = {BTN_DOT_Q_Z, BTN_A_B_C, BTN_D_E_F, BTN_G_H_I, BTN_J_K_L, BTN_M_N_O, BTN_P_R_S, BTN_T_U_V, BTN_W_X_Y, MOVE_LEFT, DELETE, MOVE_RIGHT};
     /* init Button */
     for (i = 0; i < BTN_SIZE; i++)
     {
-        buttonInfo->overlap[i] = 0;
-        buttonInfo->focused[i] = false;
         buttonInfo->buttons[i] = buttonSet[i];
         pinMode(buttonInfo->buttons[i], INPUT);
         pullUpDnControl(buttonInfo->buttons[i], PUD_UP);
     }
     /* init Cursor */
+    cursor->originalTime = time(NULL);
     cursor->isFlickering = 0;
     cursor->offset_x = 0;
     cursor->offset_y = 0;
-    cursor->originalTime = time(NULL);
+    cursor->pointer = 0;
 }
 
+/*
+ * TFT-LCD의 정보들을 초기화
+ */
 int Init_TFT(struct TFT_LCD_Info *LCD_info)
 {
     int ret = -1;
@@ -151,16 +179,167 @@ done:
     return ret;
 }
 
-void Init_LCDImage(int alphabetIndex, int alphabetValue)
+/*
+ * Screen의 버퍼와 알파벳을 설정 및 초기화함
+ */
+void Init_Screen(struct Screen *screen)
 {
-    /*
-     * a = {0, 0, 0x3FF80, 0xFFF80, 0xFFF80, 0xF0000, 0xF0000, 0xF0000, 0xF0000, 0xFFFE0, 0xFFFE0, 0xFFFF8, 0xF0078, 0xF0078, 0xF0078, 0xF0078, 0xFFFF8, 0xFFFF8, 0xFFFE0, 0xFFFE0, 0, 0, 0, 0 }
-     * 
-     */
+    int alphabet[NUM_CHAR][CHAR_PIXEL_SIZE] = {
+        {//dot
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0xF0, 0xF0,
+         0xF0, 0xF0, 0, 0, 0, 0},
+        {//q
+         0, 0, 0, 0x7FF80, 0x7FF80, 0x1FFFE0,
+         0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078,
+         0x1E0078, 0x1E0078, 0x1FFFE0, 0x1FFFE0, 0x1FFF80, 0x1E0000,
+         0x1E0000, 0x1E0000, 0x1E0000, 0x1E0000, 0x1E0000, 0},
+        {//z
+         0, 0, 0, 0, 0, 0,
+         0x7FFE0, 0x7FFE0, 0x78000, 0x78000, 0x3C000, 0x1F000,
+         0xF800, 0x1F00, 0x1F80, 0x7C0, 0x1E0, 0x3E0,
+         0x7FFE0, 0x7FFE0, 0, 0, 0, 0},
+        {//a
+         0, 0, 0x3FF80, 0xFFF80, 0xFFF80, 0xF0000,
+         0xF0000, 0xF0000, 0xF0000, 0xFFFE0, 0xFFFE0, 0xFFFF8,
+         0xF0078, 0xF0078, 0xF0078, 0xF0078, 0xFFFF8, 0xFFFF8,
+         0xFFFE0, 0xFFFE0, 0, 0, 0, 0},
+        {//b
+         0, 0x70, 0x70, 0x70, 0x70, 0x3FFF0,
+         0xFFFF0, 0xFFFF0, 0x3C0070, 0x3C0070, 0x3C0070, 0x3C0070,
+         0x3C0070, 0x3C0070, 0x3C0070, 0x3C0070, 0x3C0070, 0xFFFF0,
+         0x3FFF0, 0x3FFF0, 0, 0, 0, 0},
+        {//c
+         0, 0x7FFE0, 0x7FFE0, 0x1FFFF8, 0x1FFFF8, 0x1E0078,
+         0x1E0078, 0x78, 0x78, 0x78, 0x78, 0x78,
+         0x78, 0x78, 0x1E0078, 0x1E0078, 0x1FFFF8, 0x1FFFF8,
+         0x7FFF0, 0x7FFE0, 0, 0, 0, 0},
+        {//d
+         0, 0xE0000, 0xE0000, 0xE0000, 0xE0000, 0xFFFC0,
+         0xFFFF0, 0xFFFF0, 0xE003C, 0xE003C, 0xE003C, 0xE003C,
+         0xE003C, 0xE003C, 0xE003C, 0xE003C, 0xE003C, 0xFFFF0,
+         0xFFFC0, 0xFFFC0, 0, 0, 0, 0},
+        {//e
+         0, 0, 0, 0x7FFC0, 0x7FFC0, 0xFFFE0,
+         0xE00E0, 0xE00E0, 0xE00E0, 0xE00E0, 0xFFFE0, 0x7FFE0,
+         0x3FFE0, 0xE0, 0xE0, 0xE0, 0xE0, 0x7FFE0,
+         0x7FF80, 0x7FF80, 0, 0, 0, 0},
+        {//f
+         0, 0x3E00, 0x7E00, 0xFF80, 0xC780, 0x780,
+         0x780, 0x1FFC0, 0x1FFC0, 0x1FFC0, 0x780, 0x780,
+         0x780, 0x780, 0x780, 0x780, 0x780, 0x780,
+         0x780, 0x780, 0, 0, 0, 0},
+        {//g
+         0, 0, 0, 0, 0xFFF80, 0xFFFC0,
+         0xFFFE0, 0xE0070, 0xE0070, 0xE0070, 0xE0070, 0xE0070,
+         0xE0070, 0xE0070, 0xE0070, 0xFFFE0, 0xFFF80, 0xFFF00,
+         0xF0000, 0xF0000, 0xFFF80, 0x3FF80, 0x3FF80, 0},
+        {//h
+         0, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C,
+         0x3C, 0x3FFFC, 0x7FFFC, 0x1FFFFC, 0x1E003C, 0x1E003C,
+         0x1E003C, 0x1E003C, 0x1E003C, 0x1E003C, 0x1E003C, 0x1E003C,
+         0x1E003C, 0x1E003C, 0, 0, 0, 0},
+        {//i
+         0, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0,
+         0, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00,
+         0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00,
+         0x3C00, 0x3C00, 0, 0, 0, 0},
+        {//j
+         0, 0, 0, 0x1E000, 0x1E000, 0x1E000,
+         0, 0x1E000, 0x1E000, 0x1E000, 0x1E000, 0x1E000,
+         0x1E000, 0x1E000, 0x1E000, 0x1E000, 0x1E000, 0x1E000,
+         0x1E000, 0x1E000, 0x1FFC0, 0xFFC0, 0x7FC0, 0},
+        {//k
+         0, 0, 0x70, 0x70, 0x70, 0x70,
+         0x70, 0x78070, 0x7C070, 0x3E070, 0x3F870, 0x7E70,
+         0x1FF0, 0x1FF0, 0x7FF0, 0x7F870, 0x7E070, 0xF8070,
+         0xF0070, 0xE0070, 0, 0, 0, 0},
+        {//l
+         0, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00,
+         0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00,
+         0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00, 0x3C00,
+         0x3C00, 0x3C00, 0, 0, 0, 0},
+        {//m
+         0, 0, 0, 0, 0, 0,
+         0x3C7F0, 0x7C7F8, 0xFFFF8, 0xFFFF8, 0x1C3C38, 0x1C3C38,
+         0x1C3C38, 0x1C3C38, 0x1C3C38, 0x1C3C38, 0x1C3C38, 0x1C3C38,
+         0x1C3C38, 0x1C3C38, 0, 0, 0, 0},
+        {//n
+         0, 0, 0, 0, 0, 0,
+         0xFFC0, 0x1FFE0, 0x3FFF0, 0x3FFF0, 0x700F0, 0xF00F0,
+         0xF00F0, 0xF00F0, 0xF00F0, 0xF00F0, 0xF00F0, 0xF00F0,
+         0xF00F0, 0xF00F0, 0, 0, 0, 0},
+        {//o
+         0, 0, 0, 0, 0, 0x1FFE0,
+         0x3FFE0, 0x7FFF0, 0x7FFF0, 0x70070, 0x70070, 0x70070,
+         0x70070, 0x70070, 0x70070, 0x70070, 0x7FFF0, 0x7FFF0,
+         0x3FFE0, 0x1FFC0, 0, 0, 0, 0},
+        {//p
+         0, 0, 0, 0x1FFE0, 0x1FFE0, 0x7FFF8,
+         0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078, 0x1E0078,
+         0x1E0078, 0x1E0078, 0x7FFF8, 0x7FFF8, ‭0x1FFF8‬, 0x78,
+         0x78, 0x78, 0x78, 0x78, 0x78, 0},
+        {//r
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0x3F3C0, 0x3F3C0, 0x3FFC0, 0xFC0,
+         0xFC0, 0x3C0, 0x3C0, 0x3C0, 0x3C0, 0x3C0,
+         0x3C0, 0x3C0, 0, 0, 0, 0},
+        {//s
+         0, 0, 0, 0, 0, 0x3FFC0,
+         0x3FFE0, 0x3FFF8, 0x3FFF8, 0x78, 0x78, 0x3FFF8,
+         0x7FFE0, 0xFFFE0, 0xF0000, 0xF0000, 0xFFFE0, 0x7FFE0,
+         0x3FFE0, 0x1FFE0, 0, 0, 0, 0},
+        {//t
+         0, 0, 0, 0x1E00, 0x1E00, 0x1E00,
+         0x7FFF0, 0x7FFF0, 0x7FFF0, 0x1E00, 0x1E00, 0x1E00,
+         0x1E00, 0x1E00, 0x1E00, 0x1E00, 0x1E00, 0x3FE00,
+         0x3FE00, 0x3F800, 0, 0, 0, 0},
+        {//u
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0xC0030, 0xE00F0, 0xE00F0, 0xF00F00,
+         0xF00F00, 0xF00F00, 0xF80F0, 0xF80F0, 0xFFFF0, 0xEFFF0,
+         0xEFFE0, 0xC7FC0, 0, 0, 0, 0},
+        {//v
+         0, 0, 0, 0, 0, 0,
+         0, 0x60060, 0x60060, 0x781E0, 0x381C0, 0x18180,
+         0x18180, 0x8100, 0xE700, 0x7E00, 0x3C00, 0x3C00,
+         0x1800, 0x1800, 0, 0, 0, 0},
+        {//w
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0x80010, 0x80010, 0xC0030, 0xC0030,
+         0xC0030, 0xC1830, 0x63CE0, 0x63CE0, 0x3E7C0, 0x1E780,
+         0xC300, 0x8100, 0, 0, 0, 0},
+        {//x
+         0, 0, 0, 0, 0, 0,
+         0, 0, 0x1C0E0, 0x1C0E0, 0x7380, 0x7380,
+         0x3F00, 0x3F00, 0x3F00, 0x3F00, 0x7380, 0x7380,
+         0x1C0E0, 0x1C0E0, 0, 0, 0, 0},
+        {//y
+         0, 0, 0, 0, 0, 0,
+         0, 0x1C0E0, 0x1C0E0, 0x1C0E0, 0x1C0E0, 0x1C0E0,
+         0x1C0E0, 0x1C0E0, 0x1FFC0, 0x1FF80, 0x18000, 0x18000,
+         0x18000, 0x18000, 0x1C000, 0x1FF00, 0x7E00, 0}};
     int i, j;
-    /* TODO: 알파벳 폰트 구현 */
+    for (i = 0; i < NUM_CHAR; i++)
+    {
+        for (j = 0; j < CHAR_PIXEL_SIZE; j++)
+        {
+            screen->alphabet[i][j] = alphabet[i][j];
+        }
+    }
+    for (i = 0; i < MAX_BUF_SIZE; i++)
+    {
+        screen->buffer[i].buttonNum = _null;
+        screen->buffer[i].overlap = _null;
+        screen->buffer[i].focused = false;
+        screen->buffer[i].valueExist = false;
+    }
 }
 
+/* 버튼 입력을 받고 그 정보를 리턴하는 메소드
+ * flag 값으로 리턴됨
+ */
 int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info LCD_info)
 {
     int inputBtnFlag = 0x0000;
@@ -205,38 +384,72 @@ int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info L
     return inputBtnFlag;
 }
 
-void Button_Process_Function(struct Button buttonInfo, int flag)
+/*
+ * Focus되어있는지 유무를 판별하는 메소드
+ * 만약 Focus되어있으면 참 반환
+ * 아니면 거짓을 반환
+ */
+bool isFocused(struct Screen *screen, int pointer)
 {
-    /* 
-     * TODO: 입력받은 문자 처리
-     * 버튼 중첩을 어떻게 구현할 것인가? ==>overlap 변수를 두어 해결할 것임
-     * 커서의 위치는 어떻게 지정되어야하는가?   ==> Cursor 구조체의 offset을 두어 해결할 것
-     * 새 문자를 출력할 때 기존 버튼을 누른건지 새 버튼을 누른건지에 대한 인식처리는 어떻게 해야하는가?
-     * Insert할 때 어떻게 처리하여야하는가?
-     * LCDPrint 메소드에 정보를 잘 전달해주기 위해 무엇을 하여야 하는가?
-     */
-    int i;
-    char *currentString[MAX_BUF_SIZE] = {
-        0,
-    };
-    for (i = 0; i < 13; i++)
+    if (screen->buffer[pointer].focused == true)
+        return true;
+    else
+        return false;
+}
+/*
+ * 중복되어 눌려져 있는 것이 있는지 확인하는 메소드
+ * EX: (a를 기존에 입력받았을 때 또 a에 대한 버튼을 누른 경우) 참 반환
+ * 아니면 거짓을 반환
+ */
+bool isOverlaped(struct Screen *screen, int pointer)
+{
+
+    if (screen->buffer[pointer].overlap != _null)
+        return true;
+    else
+        return false;
+}
+
+/* 
+ * TODO: 입력받은 문자 처리
+ * 버튼 중첩을 어떻게 구현할 것인가? ==>overlap 변수를 두어 해결할 것임
+ * 커서의 위치는 어떻게 지정되어야하는가?   ==> Cursor 구조체의 offset을 두어 해결할 것
+ * 새 문자를 출력할 때 기존 버튼을 누른건지 새 버튼을 누른건지에 대한 인식처리는 어떻게 해야하는가?
+ * Insert할 때 어떻게 처리하여야하는가?
+ * LCDPrint 메소드에 정보를 잘 전달해주기 위해 무엇을 하여야 하는가?
+*/
+int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, struct Screen *screen, int flag)
+{
+
+    int i, j, index;
+    for (i = 0; i < BTN_SIZE; i++)
     {
         //문자버튼을 입력한 경우
         if (i < 9 && ((flag & (0x0001 << i)) != 0))
         {
-            printf("'%d' input\n", buttonInfo.buttons[i]);
+            if (screen->buffer[cursor->pointer].valueExist) //값이 이미 존재하는 경우
+            {
+                if (isFocused(screen, cursor->pointer) && screen->buffer[cursor->pointer].buttonNum == buttonInfo->buttons[i]) //포커싱되어있으면서 동시에 같은 버튼을 누른 경우
+                {
+                    screen->buffer[cursor->pointer].overlap++;
+                }
+                else //INSERT하는 공간
+                {
+                    /*
+                     * TODO: INSERT
+                     * 그 뒤의 문자들을 뒤로 한 칸씩 넘김, 이 때 버퍼가 FULL인 경우 아무 것도 하지 않음(구현자 마음 ^^)
+                     * 
+                     */
+                }
+            }
+            else //값 넣어줌
+            {
+                screen->buffer[cursor->pointer].buttonNum = buttonInfo->buttons[i];
+                screen->buffer[cursor->pointer].focused = true;
+                screen->buffer[cursor->pointer].overlap = _default;
+                screen->buffer[cursor->pointer].valueExist = true;
+            }
             break;
-            /*
-             * TODO: 만약 문자 입력으로 인한 focus가 되어 있지 않을 때
-             * 뒤에 문자가 입력되어 있지 않는 경우(현재 입력하고자 하는 공간에 문자가 없는 경우)문자 기입
-             * 문자가 존재하는 경우(INSERT)
-             * 그 뒤의 문자들을 뒤로 한 칸씩 넘김, 이 때 공간이 FULL인 경우 아무 것도 하지 않을지 스크린 뒤에 글을 쓰게끔 할지 미지수..
-             * 만약 문자 입력으로 인한 focus가 되어 있을 때
-             * 그 focus된 문자를 또 입력하는 경우
-             * 그에 맞는 문자로 전환, 커서 이동은 없음
-             * focus된 문자를 입력하는 것이 아닌 경우
-             * 커서 자동으로 1 증가 후 문자 작성. 이 때도 커서의 위치나 뒤의 문자가 있는지에 대해서도 잘 살펴보아야함. 커서 위치는 goto문으로 쓸지 고민!
-             */
         }
         //커서왼쪽이동버튼을 누른 경우
         else if (i == 9 && ((flag & (0x0001 << i)) != 0))
@@ -276,15 +489,16 @@ void Button_Process_Function(struct Button buttonInfo, int flag)
     }
 }
 
-void LCDPrint(struct Button *button_info)
+/* 
+ * TODO: 처리된 문자 출력 구현
+ * 화면을 넘어가게 되는 즉시 다음 줄로 넘어가게 구현
+ * delete의 경우 맨 마지막 문자를 지워야하는데 어떻게 인식시키고 출력해줄 수 있는가?
+ * insert의 경우 그 뒤의 문자들을 어떻게 처리해야하는가?
+ * 커서를 옮길경우 전의 커서 깜빡임 처리는 어떻게 해야하는가?
+ */
+void LCDPrint(struct Button *button_info, struct Screen *screen)
 {
-    /* 
-     * TODO: 처리된 문자 출력 구현
-     * 화면을 넘어가게 되는 즉시 다음 줄로 넘어가게 구현
-     * delete의 경우 맨 마지막 문자를 지워야하는데 어떻게 인식시키고 출력해줄 수 있는가?
-     * insert의 경우 그 뒤의 문자들을 어떻게 처리해야하는가?
-     * 커서를 옮길경우 전의 커서 깜빡임 처리는 어떻게 해야하는가?
-     */
+    return;
 }
 
 int main()
@@ -292,26 +506,25 @@ int main()
     char buffer[MAX_BUF_SIZE] = {
         0,
     };
-    int a[24] = {0, 0, 0x3FF80, 0xFFF80, 0xFFF80, 0xF0000, 0xF0000, 0xF0000, 0xF0000, 0xFFFE0, 0xFFFE0, 0xFFFF8, 0xF0078, 0xF0078, 0xF0078, 0xF0078, 0xFFFF8, 0xFFFF8, 0xFFFE0, 0xFFFE0, 0, 0, 0, 0};
     struct TFT_LCD_Info LCD_info;
     struct Cursor cursor_info;
     struct Button button_info;
+    struct Screen screen;
     int dataReady; //버튼 입력 flag 변수
 
     /* Setting */
     wiringPiSetup();
-    Init_ButtonAndCursor(&button_info, &cursor_info);
+    Init_Button_Cursor(&button_info, &cursor_info);
     if (Init_TFT(&LCD_info) < 0)
         exit(1);
+    Init_Screen(&screen);
 
-    Init_LCDImage(27, 24); //아직 미구현되어있음
-    printf(" isFlickering=%d\n offsetX=%d\n offsetY=%d\n originalTime=%ld\n", cursor_info.isFlickering, cursor_info.offset_x, cursor_info.offset_y, cursor_info.originalTime);
     while (1)
     {
         /* TODO: 처리 구현 */
         dataReady = Button_Input(button_info.buttons, &cursor_info, LCD_info);
-        Button_Process_Function(button_info, dataReady);
-        LCDPrint(&button_info);
+        Button_Process_Function(&button_info, &cursor_info, &screen, dataReady);
+        LCDPrint(&button_info, dataReady);
     }
 
     /* Free Memory */
