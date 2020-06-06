@@ -53,9 +53,7 @@ int main()
     }
 
     /* black pixel*/
-    offset = 50 * fbvar.xres + 50;
-    pixel = makepixel(0, 0, 0); /* red pixel */
-    *(pfbdata + offset) = pixel;
+    pixel = makepixel(0, 0, 0);
 
     for (vertical = 0; vertical < fbvar.yres; ++vertical)
     {
