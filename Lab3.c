@@ -11,7 +11,7 @@
 #define FBDEVFILE "/dev/fb2"
 
 /* 버튼 열거형 지정 */
-enum BTN
+enum BTN_WiringPi
 {
     BTN_DOT_Q_Z = 24, //버튼 .qz 에 대한 wiringPi 넘버링
     BTN_A_B_C = 23,   //버튼 abc 에 대한 wiringPi 넘버링
@@ -53,7 +53,8 @@ enum buffer_state
     _default = 0 //초기 값
 };
 
-enum cursor_state
+/* 커서의 상태를 나타내는 열거형 지정 */
+enum cursor_move_state
 {
     LEFT = true,
     RIGHT = false
@@ -69,11 +70,11 @@ struct TFT_LCD_Info
 /* 커서의 동작정보를 담은 구조체 */
 struct Cursor
 {
-    time_t originalTime;         //커서 플리킹 사이클 체크변수
-    unsigned short isFlickering; //커서 플리킹 체크변수
-    unsigned short offset_x;     //실제 커서 x의 위치를 나타내는 변수
-    unsigned short offset_y;     //실제 커서 y의 위치를 나타내는 변수
-    int pointer;                 //버퍼 배열에서 커서위치를 가리키는 변수
+    time_t originalTime;     //커서 플리킹 사이클 체크변수
+    bool isFlickering;       //커서 플리킹 체크변수
+    unsigned short offset_x; //커서 x의 위치를 나타내는 변수
+    unsigned short offset_y; //커서 y의 위치를 나타내는 변수
+    int pointer;             //버퍼 배열에서 커서위치를 가리키는 변수
 };
 /* 버튼구성 구조체 */
 struct Button
@@ -104,6 +105,8 @@ struct Screen
  * --second parameter (alphabet)--
  * null: 위치된 cursor쪽에 문자를 그림
  * not null: 알파벳 정보를 가지고 알파벳을 그림
+ * Third parameter: LCD의 정보를 담은 객체 포인터
+ * Fourth parameter: 커서의 정보를 담은 객체 포인터
  */
 void SetScreen(bool flag, int *alphabet, struct TFT_LCD_Info *LCD_info, struct Cursor *cursor)
 {
@@ -157,10 +160,13 @@ void SetScreen(bool flag, int *alphabet, struct TFT_LCD_Info *LCD_info, struct C
 /*
  * 커서를 깜빡이게 만들어주는 메소드
  * 1초마다 한 번씩 깜빡이게 만들어 둚
+ * First parameter: 커서의 정보를 담은 객체 포인터
+ * Second parameter: LCD의 정보를 담은 객체
+ * Third parameter: 스크린의 정보를 담은 객체
  */
 void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Screen screen)
 {
-    int draw_offset; //임시 LCD포인터
+    int draw_offset; //임시 LCD 커서 출력 오프셋
     int i;
     time_t currentTime = time(NULL);
     if (currentTime - cursor->originalTime < 1) //1초 이상 지나지 않은 경우 단순리턴
@@ -168,10 +174,10 @@ void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Sc
     else //1초 이상 지나면 커서 깜빡임
     {
         cursor->originalTime = currentTime;
-        if (cursor->isFlickering == 0) //깜빡이고있지 않을 때
+        if (cursor->isFlickering == false) //깜빡이고있지 않을 때
         {
-            cursor->isFlickering = 1; //Blink!
-            if (screen.buffer[cursor->pointer].focused)
+            cursor->isFlickering = true;                //Blink!
+            if (screen.buffer[cursor->pointer].focused) //Focusing Cursor Draw
             {
                 for (i = 0; i < 24; i++)
                 {
@@ -179,7 +185,7 @@ void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Sc
                     *(LCD_info.pfbdata + draw_offset) = WHITE; /* draw pixel */
                 }
             }
-            else
+            else //Unfocusing Cursor Draw
             {
                 for (i = 0; i < 24; i++)
                 {
@@ -190,9 +196,10 @@ void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Sc
         }
         else //깜빡이고 있을 때
         {
-            cursor->isFlickering = 0; //Cursor off!
+            cursor->isFlickering = false; //Cursor off!
             for (i = 0; i < 24; i++)
             {
+                //Erase focused Cursor and unfocused cursor
                 draw_offset = (cursor->offset_y + 23) * LCD_info.fbvar.xres + cursor->offset_x + i;
                 *(LCD_info.pfbdata + draw_offset) = BLACK; /* draw pixel */
                 draw_offset = (cursor->offset_y + i) * LCD_info.fbvar.xres + cursor->offset_x;
@@ -220,7 +227,7 @@ void Init_Button_Cursor(struct Button *buttonInfo, struct Cursor *cursor)
     }
     /* init Cursor */
     cursor->originalTime = time(NULL);
-    cursor->isFlickering = 0;
+    cursor->isFlickering = false;
     cursor->offset_x = 0;
     cursor->offset_y = 0;
     cursor->pointer = 0;
@@ -267,7 +274,6 @@ done:
  */
 void Init_Screen(struct Screen *screen)
 {
-    //TODO: Q, P 수정해야함
     int alphabet[NUM_CHAR][CHAR_PIXEL_SIZE] = {
         {//dot
          0, 0, 0, 0, 0, 0,
@@ -409,9 +415,10 @@ void Init_Screen(struct Screen *screen)
     {
         for (j = 0; j < CHAR_PIXEL_SIZE; j++)
         {
-            screen->alphabet[i][j] = alphabet[i][j];
+            screen->alphabet[i][j] = alphabet[i][j]; //스크린 알파벳에 값 할당
         }
     }
+    /* 스크린 구조체 내 버퍼 초기화 */
     for (i = 0; i < MAX_BUF_SIZE; i++)
     {
         screen->buffer[i].buttonNum = _null;
@@ -424,6 +431,10 @@ void Init_Screen(struct Screen *screen)
 
 /* 버튼 입력을 받고 그 정보를 리턴하는 메소드
  * flag 값으로 리턴됨
+ * First parameter: 버튼의 정보들
+ * Second parameter: 커서의 정보를 담은 객체 포인터
+ * Third parameter: LCD의 정보를 담은 객체
+ * Fourth parameter: 스크린의 정보를 담은 객체
  */
 int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info LCD_info, struct Screen screen)
 {
@@ -465,8 +476,6 @@ int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info L
         }
         Cursor_Blink(cursor_info, LCD_info, screen);
     }
-    printf("Button[%d], flag= '%d' Input\n", i, inputBtnFlag);
-
     return inputBtnFlag;
 }
 
@@ -474,6 +483,8 @@ int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info L
  * Focus되어있는지 유무를 판별하는 메소드
  * 만약 Focus되어있으면 참 반환
  * 아니면 거짓을 반환
+ * First parameter: 스크린의 정보를 담은 객체 포인터
+ * Second parameter: 커서를 가리키고있는 포인터
  */
 bool isFocused(struct Screen *screen, int pointer)
 {
@@ -488,21 +499,23 @@ bool isFocused(struct Screen *screen, int pointer)
  * --First parameter(flag)--             
  * true: 왼쪽이동        
  * false:오른쪽이동      
+ * Second parameter: 커서의 정보를 담은 객체 포인터
+ * Third parameter: 스크린의 정보를 담은 객체 포인터
  * --Fourth parameter(isPrintCursor)--
  * true: LCD출력전용커서
  * false: 실제 값변경커서
  */
 void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool isPrintCursor)
 {
-    if (isFocused(screen, cursor->pointer) && !isPrintCursor) //focusing 되어있으면 풀고 단순리턴
-    {
-        screen->buffer[cursor->pointer].focused = false;
-        return;
-    }
     if (flag == LEFT) //왼쪽이동
     {
+        //문자가 focusing 되어있을 때 (LCD출력 커서는 해당하지 않음)
+        if (isFocused(screen, cursor->pointer) && !isPrintCursor)
+        {
+            screen->buffer[cursor->pointer].focused = false;
+        }
         //커서쪽의 문자가 focusing 되어있지 않을 때
-        if (cursor->pointer == 0) //커서가 이미 처음 부분일 경우
+        else if (cursor->pointer == 0) //커서가 이미 처음 부분일 경우
         {
             /* Do nothing */
         }
@@ -518,15 +531,16 @@ void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool i
             else //중간부분인 경우
             {    //왼쪽으로 이동
                 cursor->offset_x -= (CHAR_PIXEL_SIZE + CHAR_GAP);
-                // if (cursor->offset_x == 0 && cursor->offset_y == 0 && cursor->pointer != 0)
-                // {
-                //     cursor->offset_y += (CHAR_PIXEL_SIZE + LINE_GAP);
-                // }
             }
         }
     }
     else //오른쪽 이동
     {
+        //문자가 focusing 되어있을 때
+        if (isFocused(screen, cursor->pointer) && !isPrintCursor)
+        {
+            screen->buffer[cursor->pointer].focused = false;
+        }
         if (cursor->pointer == MAX_BUF_SIZE - 1)
         {
             /* Do nothing */
@@ -545,19 +559,15 @@ void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool i
 
             /* 커서값 변경 */
             cursor->pointer++;
-            if (cursor->offset_x == OFFSET_X_ENDLINE)
+            if (cursor->offset_x == OFFSET_X_ENDLINE) // 커서가 스크린 가장 뒤쪽 위치에 가있는 경우
             {
+                //다음 줄 첫번째 위치로 이동
                 cursor->offset_y += (CHAR_PIXEL_SIZE + LINE_GAP);
                 cursor->offset_x = 0;
             }
-            else
+            else //커서가 중간에 위치되어있는 경우
             {
                 cursor->offset_x += (CHAR_PIXEL_SIZE + CHAR_GAP);
-                /* 예외 처리 (커서를 이동시켰을 때 끝자락에 있게 되면)*/
-                // if (cursor->offset_x == OFFSET_X_ENDLINE && cursor->offset_y == OFFSET_Y_ENDLINE && !isPrintCursor)
-                // {
-                //     cursor->offset_y -= (CHAR_PIXEL_SIZE + LINE_GAP);
-                // }
             }
         }
     }
@@ -565,21 +575,19 @@ void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool i
 
 /* 
  * 입력받은 버튼을 처리하는 메소드
- * First parameter: 버튼 정보를 담은 객체
- * Second parameter: 커서 정보를 담은 객체
- * Third parameter: LCD-Screen 정보를 담은 객체
+ * First parameter: 버튼 정보를 담은 객체 포인터
+ * Second parameter: 커서 정보를 담은 객체 포인터
+ * Third parameter: LCD-Screen 정보를 담은 객체 포인터
  * Fourth parameter: 입력받은 버튼의 정보
  */
 int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, struct Screen *screen, int flag)
 {
-    printf("Button_Process_Function Start\n");
     int i, j;
     for (i = 0; i < BTN_SIZE; i++)
     {
         //문자버튼을 입력한 경우
         if (i < 9 && ((flag & (0x0001 << i)) != 0))
         {
-            printf("ALPHABET Input\n");
             if (screen->buffer[cursor->pointer].valueExist) //값이 이미 존재하는 경우
             {
                 if (isFocused(screen, cursor->pointer) && screen->buffer[cursor->pointer].buttonNum == i) //포커싱되어있으면서 동시에 같은 버튼을 누른 경우
@@ -589,7 +597,6 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
                 }
                 else //INSERT하는 공간
                 {
-                    printf("INSERT\n");
                     //버퍼 공간의 여유가 있는 경우
                     if (screen->buffer[MAX_BUF_SIZE - 1].valueExist == false)
                     {
@@ -614,9 +621,7 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
                             screen->buffer[cursor->pointer + 1].overlap = _default;
                             screen->buffer[cursor->pointer + 1].valueExist = true;
                             screen->buffer[cursor->pointer + 1].isChanged = true;
-                            printf("Before CursorMoved cursor->pointer = %d\n", cursor->pointer);
                             CursorMoved(RIGHT, cursor, screen, false); //값 입력했으므로 커서도 한 칸 이동해야함
-                            printf("CursorMoved! cursor->pointer = %d\n", cursor->pointer);
                         }
                         else
                         {
@@ -636,8 +641,6 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
             }
             else //값이 뒤에도 존재하지 않으므로 해당 커서쪽에 값 할당
             {
-                printf("New ALPHABET INPUTED!\n");
-                printf("cursor->pointer = %d\n", cursor->pointer);
                 screen->buffer[cursor->pointer].buttonNum = i;
                 screen->buffer[cursor->pointer].focused = true;
                 screen->buffer[cursor->pointer].overlap = _default;
@@ -649,26 +652,18 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
         //커서왼쪽이동버튼을 누른 경우
         else if (i == 9 && ((flag & (0x0001 << i)) != 0))
         {
-            printf("CURSOR MOVED(LEFT)\n");
             CursorMoved(LEFT, cursor, screen, false);
             break;
         }
         //커서오른쪽이동버튼을 누른 경우
         else if (i == 11 && ((flag & (0x0001 << i)) != 0))
         {
-            printf("CURSOR MOVED(RIGHT)\n");
-            /*
-             * TODO: 만약 focus가 되어 있지 않은 상태에서 
-             * x축이 끝자락에 있으면서 y축도 끝자락인 경우 아무것도 하지 않게 할건지 한 줄을 건너 뛴 것처럼 보이게 만들건지 선택해야함!(어떻게 구현할까?)
-             * 일단 테스트 해보고 구현 유무 선택
-             */
             CursorMoved(RIGHT, cursor, screen, false);
             break;
         }
         //DELETE버튼을 누른 경우
         else if (i == 10 && ((flag & (0x0001 << i)) != 0))
         {
-            printf("DELETE BUTTON SELECT\n");
             screen->buffer[cursor->pointer].focused = false;
             j = cursor->pointer;
             while (j < (MAX_BUF_SIZE - 1) && screen->buffer[j + 1].valueExist != false)
@@ -691,10 +686,13 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
 
 /* 
  * 처리된 문자를 스크린 상에 출력해주는 메소드
+ * First parameter: 버튼의 정보를 담은 객체 포인터
+ * Second parameter: 커서의 정보를 담은 객체 포인터
+ * Third parameter: LCD 정보를 담은 객체 포인터
+ * Fourth parameter: 스크린 정보를 담은 객체 포인터
  */
 void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_Info *LCD_info, struct Screen *screen)
 {
-    printf("LCDPrint Function Start\n");
     struct Cursor drawCursor;
     int num_button;
     int num_overlap;
@@ -703,11 +701,10 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
     drawCursor.offset_y = cursor->offset_y;
     drawCursor.pointer = cursor->pointer;
     //스크린을 벗어난 이동의 경우(DOWN)
-    if (drawCursor.pointer == SCREEN_MAX_CHAR - 1 && screen->buffer[drawCursor.pointer + 1].valueExist == false)
+    if (drawCursor.pointer == SCREEN_MAX_CHAR - 1 && screen->buffer[drawCursor.pointer + 1].valueExist == false && drawCursor.offset_x == OFFSET_X_ENDLINE && drawCursor.offset_y == OFFSET_Y_ENDLINE)
     {
         cursor->offset_x = OFFSET_X_ENDLINE;
         cursor->offset_y -= (CHAR_PIXEL_SIZE + LINE_GAP);
-        printf("DOWNDOWNDOWNDOWNDOWNDOWNDOWNDOWN\n");
         drawCursor.offset_x = 0;
         drawCursor.offset_y = 0;
         for (i = 0; i < SCREEN_MAX_CHAR; i++)
@@ -739,15 +736,12 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
     //스크린을 벗어난 이동의 경우(UP)
     else if (drawCursor.offset_x == 0 && drawCursor.offset_y == 0 && drawCursor.pointer != 0)
     {
-        printf("UPUPUPUPUPUPUPUPUPUPUPUPUPUPUPUP\n");
         cursor->offset_x = 0;
         cursor->offset_y += (CHAR_PIXEL_SIZE + LINE_GAP);
         drawCursor.offset_x = 0;
         drawCursor.offset_y = 0;
         for (i = 0; i < SCREEN_MAX_CHAR; i++)
         {
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n", drawCursor.offset_y);
             screen->buffer[drawCursor.pointer].isChanged = false;
             drawCursor.pointer = i;
             //띄어쓰기나 아무 값도 없을 때
@@ -767,16 +761,10 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
     }
     else
     {
-        printf("ELSEELSEELSEELSEELSEELSEELSEELSE\n");
         /* 커서 위치 양 옆을 다시 redraw(이전 커서 깜빡임 지움) */
         if (drawCursor.pointer > 0)
         {
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n", drawCursor.offset_y);
-            printf("CursorMoved(LEFT)\n");
             CursorMoved(LEFT, &drawCursor, screen, true);
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n\n", drawCursor.offset_y);
             if (screen->buffer[drawCursor.pointer].buttonNum != _null)
             {
                 num_button = screen->buffer[drawCursor.pointer].buttonNum * 3;
@@ -787,21 +775,11 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
             {
                 SetScreen(false, NULL, LCD_info, &drawCursor);
             }
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n", drawCursor.offset_y);
-            printf("CursorMoved(RIGHT)\n");
             CursorMoved(RIGHT, &drawCursor, screen, true);
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n\n", drawCursor.offset_y);
         }
         if (drawCursor.pointer < MAX_BUF_SIZE - 1)
         {
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n", drawCursor.offset_y);
-            printf("CursorMoved(RIGHT)\n");
             CursorMoved(RIGHT, &drawCursor, screen, true);
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n\n", drawCursor.offset_y);
             if (screen->buffer[drawCursor.pointer].buttonNum != _null)
             {
                 num_button = screen->buffer[drawCursor.pointer].buttonNum * 3;
@@ -812,25 +790,12 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
             {
                 SetScreen(false, NULL, LCD_info, &drawCursor);
             }
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n", drawCursor.offset_y);
-            printf("CursorMoved(LEFT)\n");
             CursorMoved(LEFT, &drawCursor, screen, true);
-            printf("cursor->offset_x = %d\n", drawCursor.offset_x);
-            printf("cursor->offset_y = %d\n\n", drawCursor.offset_y);
         }
 
         /* 바뀐 값들 Redraw */
         while (screen->buffer[drawCursor.pointer].isChanged && drawCursor.offset_x <= OFFSET_X_ENDLINE && drawCursor.offset_y <= OFFSET_Y_ENDLINE)
         {
-            printf("\n**************\n");
-            printf("screen->buffer[%d].buttonNum: %d\n", drawCursor.pointer, screen->buffer[drawCursor.pointer].buttonNum);
-            printf("screen->buffer[%d].overlap: %d\n", drawCursor.pointer, screen->buffer[drawCursor.pointer].overlap);
-            printf("screen->buffer[%d].isChanged: %s\n", drawCursor.pointer, screen->buffer[drawCursor.pointer].isChanged == true ? "true" : "false");
-            printf("screen->buffer[%d].valueExist: %s\n", drawCursor.pointer, screen->buffer[drawCursor.pointer].valueExist == true ? "true" : "false");
-            printf("drawCursor.offset_x: %d\n", drawCursor.offset_x);
-            printf("drawCursor.offset_y: %d\n", drawCursor.offset_y);
-            printf("**************\n");
             screen->buffer[drawCursor.pointer].isChanged = false;
 
             //띄어쓰기나 null상태 일 경우
@@ -843,7 +808,6 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
                 /* 버튼, 중첩값 변수에 할당 */
                 num_button = screen->buffer[drawCursor.pointer].buttonNum * 3;
                 num_overlap = screen->buffer[drawCursor.pointer].overlap;
-                printf("SetScreen(false, screen->alphabet[%d], ...);\n", num_button + num_overlap);
                 /*Draw Alphabet*/
                 SetScreen(false, screen->alphabet[num_button + num_overlap], LCD_info, &drawCursor);
             }
@@ -860,22 +824,23 @@ int main()
     struct Screen screen;
     int dataReady; //버튼 입력 flag 변수
 
-    /* Setting */
+    /* Setting Phase */
     wiringPiSetup();
     Init_Button_Cursor(&button_info, &cursor_info);
     if (Init_TFT(&LCD_info) < 0)
         exit(1);
     Init_Screen(&screen);
-    SetScreen(true, NULL, &LCD_info, &cursor_info);
-    while (1)
+    SetScreen(true, NULL, &LCD_info, &cursor_info); //화면 클리어
+    printf("Init Successfully!");
+    /* Process Phase */
+    while (true)
     {
-        dataReady = Button_Input(button_info.buttons, &cursor_info, LCD_info, screen);
-        Button_Process_Function(&button_info, &cursor_info, &screen, dataReady);
-        LCDPrint(&button_info, &cursor_info, &LCD_info, &screen);
-        printf("=========================================\n");
+        dataReady = Button_Input(button_info.buttons, &cursor_info, LCD_info, screen); //버튼 입력에 대한 정보를 가져옴
+        Button_Process_Function(&button_info, &cursor_info, &screen, dataReady);       //입력받은 버튼을 가지고 처리 수행
+        LCDPrint(&button_info, &cursor_info, &LCD_info, &screen);                      //처리된 값을 가지고 LCD에 출력
     }
-
-    /* Free Memory */
+    SetScreen(true, NULL, &LCD_info, &cursor_info); //화면 클리어
+    /* Free Memory Phase */
     munmap(LCD_info.pfbdata, LCD_info.fbvar.xres * LCD_info.fbvar.yres * 16 / 8);
     close(LCD_info.fbfd);
     return 0;
