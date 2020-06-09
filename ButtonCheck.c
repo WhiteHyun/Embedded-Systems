@@ -31,24 +31,24 @@ void Init_Button(int *buttonSet, int length)
     printf("initialize_done\n");
 }
 
-int Button_Input(int *buttons, int length)
+int Button_Input(int *buttons)
 {
     int inputBtnFlag = 0x0000;
     int i, state = 0; //state: 입력 유무 상태를 저장할 변수
     while (1)
     {
         //버튼을 눌렀을 때
-        if (digitalRead(BTN_DOT_Q_Z) || digitalRead(BTN_A_B_C) || digitalRead(BTN_D_E_F) ||
-            digitalRead(BTN_G_H_I) || digitalRead(BTN_J_K_L) || digitalRead(BTN_M_N_O) ||
-            digitalRead(BTN_P_R_S) || digitalRead(BTN_T_U_V) || digitalRead(BTN_W_X_Y) ||
-            digitalRead(MOVE_LEFT) || digitalRead(DELETE) || digitalRead(MOVE_RIGHT))
+        if (!digitalRead(BTN_DOT_Q_Z) || !digitalRead(BTN_A_B_C) || !digitalRead(BTN_D_E_F) ||
+            !digitalRead(BTN_G_H_I) || !digitalRead(BTN_J_K_L) || !digitalRead(BTN_M_N_O) ||
+            !digitalRead(BTN_P_R_S) || !digitalRead(BTN_T_U_V) || !digitalRead(BTN_W_X_Y) ||
+            !digitalRead(MOVE_LEFT) || !digitalRead(DELETE) || !digitalRead(MOVE_RIGHT))
         {
             delay(10);
             if (state == 0) //입력 받은 상태가 아닌 경우
             {
-                for (i = 0; i < 13; i++)
+                for (i = 0; i < BTN_SIZE; i++)
                 {
-                    if (digitalRead(buttons[i]))
+                    if (!digitalRead(buttons[i]))
                     {
                         inputBtnFlag |= 1 << i;
                         break;
@@ -58,10 +58,10 @@ int Button_Input(int *buttons, int length)
             }
         }
         //버튼을 때었을 때
-        else if (!(digitalRead(BTN_DOT_Q_Z) || digitalRead(BTN_A_B_C) || digitalRead(BTN_D_E_F) ||
-                   digitalRead(BTN_G_H_I) || digitalRead(BTN_J_K_L) || digitalRead(BTN_M_N_O) ||
-                   digitalRead(BTN_P_R_S) || digitalRead(BTN_T_U_V) || digitalRead(BTN_W_X_Y) ||
-                   digitalRead(MOVE_LEFT) || digitalRead(DELETE) || digitalRead(MOVE_RIGHT)))
+        else if (digitalRead(BTN_DOT_Q_Z) && digitalRead(BTN_A_B_C) && digitalRead(BTN_D_E_F) &&
+                 digitalRead(BTN_G_H_I) && digitalRead(BTN_J_K_L) && digitalRead(BTN_M_N_O) &&
+                 digitalRead(BTN_P_R_S) && digitalRead(BTN_T_U_V) && digitalRead(BTN_W_X_Y) &&
+                 digitalRead(MOVE_LEFT) && digitalRead(DELETE) && digitalRead(MOVE_RIGHT))
         {
             if (state == 1) //입력을 받아놓은 상태인 경우
             {
@@ -79,16 +79,16 @@ int main()
     int dataReady;
     int i;
     wiringPiSetup();
-    Init_Button(buttons, BTN_SIZE);
+    Init_Button(buttons);
     // while (1)
     // {
     //     printf("Button_Input ready\n");
     //     dataReady = Button_Input(buttons, BTN_SIZE);
     //     printf("%d Input\n", dataReady);
     // }
-    for (i = 0; i < BTN_SIZE; ++i)
+    for (;;)
     {
-        printf("BTN_%d Input : %d\n", i, digitalRead(buttons[i]));
+        printf("BTN_%d Input : %d\n", i, Button_Input(buttons));
     }
     return 0;
 }
