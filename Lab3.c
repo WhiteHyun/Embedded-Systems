@@ -64,8 +64,8 @@ enum cursor_move_state
 struct TFT_LCD_Info
 {
     struct fb_var_screeninfo fbvar; //LCD정보들을 가지고 있음
-    int fbfd;
-    unsigned short *pfbdata; //LCD의 시작주소를 가리킴
+    int fbfd;                       //파일의 정보를 읽어온 값을 저장할 변수
+    unsigned short *pfbdata;        //LCD의 시작주소를 가리킴
 };
 /* 커서의 동작정보를 담은 구조체 */
 struct Cursor
@@ -174,7 +174,7 @@ void Cursor_Blink(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Sc
     else //1초 이상 지나면 커서 깜빡임
     {
         cursor->originalTime = currentTime;
-        if (cursor->isFlickering == false) //깜빡이고있지 않을 때
+        if (!cursor->isFlickering) //깜빡이고있지 않을 때
         {
             cursor->isFlickering = true;                //Blink!
             if (screen.buffer[cursor->pointer].focused) //Focusing Cursor Draw
@@ -239,15 +239,15 @@ void Init_Button_Cursor(struct Button *buttonInfo, struct Cursor *cursor)
 int Init_TFT(struct TFT_LCD_Info *LCD_info)
 {
     int ret = -1;
-    LCD_info->fbfd = open(FBDEVFILE, O_RDWR);
+    LCD_info->fbfd = open(FBDEVFILE, O_RDWR); //frame buffer의 node인 /dev/fb를 open
     if (LCD_info->fbfd < 0)
     {
         perror("fbdev open");
         goto done;
     }
-
+    //FBIOGET_VSCREENINFO: Kernel로 부터 fb_var_screeninfo 정보를 가져올 때 쓰는 옵션, fbvar에 저장한다.
     ret = ioctl(LCD_info->fbfd, FBIOGET_VSCREENINFO, &(LCD_info->fbvar));
-    if (ret < 0)
+    if (ret < 0) //정보 읽기에 실패한 경우
     {
         perror("fbdev ioctl");
         goto done;
@@ -711,7 +711,7 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
         {
             drawCursor.pointer = 11 + i;
             screen->buffer[drawCursor.pointer].isChanged = false;
-            if (drawCursor.pointer >= MAX_BUF_SIZE) //이미 버퍼 배열을 넘은 경우 나머지 공간은 null처리 해줌
+            if (drawCursor.pointer >= MAX_BUF_SIZE) //이미 버퍼 배열을 넘은 경우 나머지 공간은 null처리를 통해 빈 값 출력
             {
                 SetScreen(false, NULL, LCD_info, &drawCursor);
             }
