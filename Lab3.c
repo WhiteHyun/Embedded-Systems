@@ -576,10 +576,11 @@ void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool i
 /* 
  * 입력받은 버튼을 처리하는 메소드
  * First parameter: 커서 정보를 담은 객체 포인터
- * Second parameter: LCD-Screen 정보를 담은 객체 포인터
- * Third parameter: 입력받은 버튼의 정보
+ * Second parameter: LCD 정보를 담은 객체
+ * Third parameter: 스크린 정보를 담은 객체 포인터
+ * Fourth parameter: 입력받은 버튼의 정보
  */
-int Button_Process_Function(struct Cursor *cursor, struct Screen *screen, int flag)
+int Button_Process_Function(struct Cursor *cursor, struct TFT_LCD_Info LCD_info, struct Screen *screen, int flag)
 {
     int i, j;
     for (i = 0; i < BTN_SIZE; i++)
@@ -681,6 +682,10 @@ int Button_Process_Function(struct Cursor *cursor, struct Screen *screen, int fl
             break;
         }
     }
+    /* 커서 초기화 후 깜빡임 */
+    cursor->isFlickering = false;
+    cursor->originalTime = time(NULL) - 1;
+    Cursor_Blink(cursor, LCD_info, *screen);
 }
 
 /* 
@@ -812,6 +817,10 @@ void LCDPrint(struct Cursor *cursor, struct TFT_LCD_Info *LCD_info, struct Scree
             CursorMoved(RIGHT, &drawCursor, screen, true);
         }
     }
+    /* 커서 초기화 후 깜빡임 */
+    cursor->isFlickering = false;
+    cursor->originalTime = time(NULL) - 1;
+    Cursor_Blink(cursor, *LCD_info, *screen);
 }
 
 int main()
@@ -834,7 +843,7 @@ int main()
     while (true)
     {
         dataReady = Button_Input(button_info.buttons, &cursor_info, LCD_info, screen); //버튼 입력에 대한 정보를 가져옴
-        Button_Process_Function(&cursor_info, &screen, dataReady);                     //입력받은 버튼을 가지고 처리 수행
+        Button_Process_Function(&cursor_info, LCD_info, &screen, dataReady);           //입력받은 버튼을 가지고 처리 수행
         LCDPrint(&cursor_info, &LCD_info, &screen);                                    //처리된 값을 가지고 LCD에 출력
     }
     SetScreen(true, NULL, &LCD_info, &cursor_info); //화면 클리어
