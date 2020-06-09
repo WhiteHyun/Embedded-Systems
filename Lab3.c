@@ -575,12 +575,11 @@ void CursorMoved(bool flag, struct Cursor *cursor, struct Screen *screen, bool i
 
 /* 
  * 입력받은 버튼을 처리하는 메소드
- * First parameter: 버튼 정보를 담은 객체 포인터
- * Second parameter: 커서 정보를 담은 객체 포인터
- * Third parameter: LCD-Screen 정보를 담은 객체 포인터
- * Fourth parameter: 입력받은 버튼의 정보
+ * First parameter: 커서 정보를 담은 객체 포인터
+ * Second parameter: LCD-Screen 정보를 담은 객체 포인터
+ * Third parameter: 입력받은 버튼의 정보
  */
-int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, struct Screen *screen, int flag)
+int Button_Process_Function(struct Cursor *cursor, struct Screen *screen, int flag)
 {
     int i, j;
     for (i = 0; i < BTN_SIZE; i++)
@@ -686,12 +685,11 @@ int Button_Process_Function(struct Button *buttonInfo, struct Cursor *cursor, st
 
 /* 
  * 처리된 문자를 스크린 상에 출력해주는 메소드
- * First parameter: 버튼의 정보를 담은 객체 포인터
- * Second parameter: 커서의 정보를 담은 객체 포인터
- * Third parameter: LCD 정보를 담은 객체 포인터
- * Fourth parameter: 스크린 정보를 담은 객체 포인터
+ * First parameter: 커서의 정보를 담은 객체 포인터
+ * Second parameter: LCD 정보를 담은 객체 포인터
+ * Third parameter: 스크린 정보를 담은 객체 포인터
  */
-void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_Info *LCD_info, struct Screen *screen)
+void LCDPrint(struct Cursor *cursor, struct TFT_LCD_Info *LCD_info, struct Screen *screen)
 {
     struct Cursor drawCursor;
     int num_button;
@@ -701,7 +699,7 @@ void LCDPrint(struct Button *button_info, struct Cursor *cursor, struct TFT_LCD_
     drawCursor.offset_y = cursor->offset_y;
     drawCursor.pointer = cursor->pointer;
     //스크린을 벗어난 이동의 경우(DOWN)
-    if (drawCursor.pointer == SCREEN_MAX_CHAR - 1 && screen->buffer[drawCursor.pointer + 1].valueExist == false && drawCursor.offset_x == OFFSET_X_ENDLINE && drawCursor.offset_y == OFFSET_Y_ENDLINE)
+    if (drawCursor.pointer == SCREEN_MAX_CHAR - 1 && drawCursor.offset_x == OFFSET_X_ENDLINE && drawCursor.offset_y == OFFSET_Y_ENDLINE)
     {
         cursor->offset_x = OFFSET_X_ENDLINE;
         cursor->offset_y -= (CHAR_PIXEL_SIZE + LINE_GAP);
@@ -836,8 +834,8 @@ int main()
     while (true)
     {
         dataReady = Button_Input(button_info.buttons, &cursor_info, LCD_info, screen); //버튼 입력에 대한 정보를 가져옴
-        Button_Process_Function(&button_info, &cursor_info, &screen, dataReady);       //입력받은 버튼을 가지고 처리 수행
-        LCDPrint(&button_info, &cursor_info, &LCD_info, &screen);                      //처리된 값을 가지고 LCD에 출력
+        Button_Process_Function(&cursor_info, &screen, dataReady);                     //입력받은 버튼을 가지고 처리 수행
+        LCDPrint(&cursor_info, &LCD_info, &screen);                                    //처리된 값을 가지고 LCD에 출력
     }
     SetScreen(true, NULL, &LCD_info, &cursor_info); //화면 클리어
     /* Free Memory Phase */
