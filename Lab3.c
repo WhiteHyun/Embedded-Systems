@@ -219,7 +219,13 @@ void Init_Button_Cursor(struct Button *buttonInfo, struct Cursor *cursor)
     int i;
     int buttonSet[BTN_SIZE] = {BTN_DOT_Q_Z, BTN_A_B_C, BTN_D_E_F, BTN_G_H_I, BTN_J_K_L, BTN_M_N_O, BTN_P_R_S, BTN_T_U_V, BTN_W_X_Y, MOVE_LEFT, DELETE, MOVE_RIGHT};
     /* init Button */
-    for (i = 0; i < BTN_SIZE; i++)
+    for (i = 0; i < 9; i++)
+    {
+        buttonInfo->buttons[i] = buttonSet[i];
+        pinMode(buttonInfo->buttons[i], INPUT);
+        pullUpDnControl(buttonInfo->buttons[i], PUD_DOWN);
+    }
+    for (i = 9; i < BTN_SIZE; i++)
     {
         buttonInfo->buttons[i] = buttonSet[i];
         pinMode(buttonInfo->buttons[i], INPUT);
@@ -443,15 +449,23 @@ int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info L
     while (true)
     {
         //버튼을 눌렀을 때
-        if (!digitalRead(BTN_DOT_Q_Z) || !digitalRead(BTN_A_B_C) || !digitalRead(BTN_D_E_F) ||
-            !digitalRead(BTN_G_H_I) || !digitalRead(BTN_J_K_L) || !digitalRead(BTN_M_N_O) ||
-            !digitalRead(BTN_P_R_S) || !digitalRead(BTN_T_U_V) || !digitalRead(BTN_W_X_Y) ||
+        if (digitalRead(BTN_DOT_Q_Z) || digitalRead(BTN_A_B_C) || digitalRead(BTN_D_E_F) ||
+            digitalRead(BTN_G_H_I) || digitalRead(BTN_J_K_L) || digitalRead(BTN_M_N_O) ||
+            digitalRead(BTN_P_R_S) || digitalRead(BTN_T_U_V) || digitalRead(BTN_W_X_Y) ||
             !digitalRead(MOVE_LEFT) || !digitalRead(DELETE) || !digitalRead(MOVE_RIGHT))
         {
             delay(10);
             if (state == 0) //입력 받은 상태가 아닌 경우
             {
-                for (i = 0; i < BTN_SIZE; i++)
+                for (i = 0; i < 9; i++)
+                {
+                    if (digitalRead(buttons[i]))
+                    {
+                        inputBtnFlag |= 1 << i;
+                        break;
+                    }
+                }
+                for (i = 9; i < BTN_SIZE; i++)
                 {
                     if (!digitalRead(buttons[i]))
                     {
@@ -463,9 +477,9 @@ int Button_Input(int *buttons, struct Cursor *cursor_info, struct TFT_LCD_Info L
             }
         }
         //버튼을 때었을 때
-        else if (digitalRead(BTN_DOT_Q_Z) && digitalRead(BTN_A_B_C) && digitalRead(BTN_D_E_F) &&
-                 digitalRead(BTN_G_H_I) && digitalRead(BTN_J_K_L) && digitalRead(BTN_M_N_O) &&
-                 digitalRead(BTN_P_R_S) && digitalRead(BTN_T_U_V) && digitalRead(BTN_W_X_Y) &&
+        else if (!digitalRead(BTN_DOT_Q_Z) && !digitalRead(BTN_A_B_C) && !digitalRead(BTN_D_E_F) &&
+                 !digitalRead(BTN_G_H_I) && !digitalRead(BTN_J_K_L) && !digitalRead(BTN_M_N_O) &&
+                 !digitalRead(BTN_P_R_S) && !digitalRead(BTN_T_U_V) && !digitalRead(BTN_W_X_Y) &&
                  digitalRead(MOVE_LEFT) && digitalRead(DELETE) && digitalRead(MOVE_RIGHT))
         {
             if (state == 1) //입력을 받아놓은 상태인 경우
