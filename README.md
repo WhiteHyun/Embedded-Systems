@@ -15,7 +15,7 @@
 - Lab1: `GPIO`를 이용하여 사용자 입력에 따라 LED사용을 달리 함
 - Lab2: `CLCD`를 이용하여 가감산기 구현
 - Lab3: `TFT LCD`를 이용하여 텍스트 편집기 구현
-- Lab4: [`Team Project`](https://github.com/WhiteHyun/DrawingBoard-Project)로 진행됩니다.
+- Lab4: [`Team Project`](https://github.com/WhiteHyun/Paint-Project)로 진행됩니다.
 
 ### 프로젝트 사용 언어
 
